@@ -1,38 +1,117 @@
+@import url("https://fonts.googleapis.com/css2?family=SUSE:wght@100..800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Modak&family=SUSE:wght@100..800&display=swap");
+
+:root {
+  --color-white: #fefeff;
+  --color-light-blue: #d6efff;
+  --color-dark-blue: #344966;
+  --color-black: #0d1821;
+  --color-red: #fe654f;
+}
+
+body {
+  background: var(--color-black);
+  height: 100vh;
+  margin: 0;
+  color: var(--color-white);
+  font-family: "SUSE", sans-serif;
+  font-optical-sizing: auto;
+}
+
 .App {
   text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  height: 100vh;
 }
 
-.App-link {
-  color: #61dafb;
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.login-container h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-dark-blue);
+  font-family: monospace;
+}
+
+.login-container-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-white);
+  border-radius: 1rem;
+  min-width: 20rem;
+  filter: drop-shadow(0px 4px 4px var(--color-light-blue));
+}
+
+.login-container button {
+  background-color: var(--color-dark-blue);
+  color: var(--color-white);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.logo-text {
+  font-family: "Modak", system-ui;
+  font-weight: 400;
+  font-style: normal;
+  color: var(--color-light-blue);
+  font-size: 4rem;
+  margin: 0;
+}
+
+.home-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+}
+
+.wallet-selection-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.wallet-selection-button-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.wallet-selection-button-group button {
+  background-color: var(--color-dark-blue);
+  color: var(--color-white);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  margin: 0.1rem;
+}
+
+.wallet-selection-button-group button:hover {
+  filter: brightness(0.9);
+}
+.wallet-selection-button-group button:active {
+  filter: brightness(0.8);
+}
+
+.wallet-address-text {
+  color: var(--color-dark-blue);
+  filter: brightness(1.2);
+  margin: 0;
+  font-family: monospace;
 }
