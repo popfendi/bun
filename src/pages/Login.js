@@ -1,11 +1,12 @@
 const Login = () => {
   return (
     <div className="login-container">
-      <h1>login</h1>
-      <div className="login-container-inner">
-        <input type="password" placeholder="password" />
-      </div>
-      <button>login</button>
+      <input
+        className="login-container-inner"
+        type="password"
+        placeholder="password"
+      />
+      <button className="login-button">login</button>
     </div>
   );
 };
