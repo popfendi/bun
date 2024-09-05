@@ -10,7 +10,23 @@ const WalletSelection = () => {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(walletAddress);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(walletAddress).catch((err) => {
+        console.error("Failed to copy: ", err);
+      });
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = walletAddress;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        console.log("Fallback: Copying text command was successful");
+      } catch (err) {
+        console.error("Fallback: Oops, unable to copy", err);
+      }
+      document.body.removeChild(textArea);
+    }
   };
 
   const toggleDropdown = () => {
@@ -41,21 +57,27 @@ const WalletSelection = () => {
         <div className="wallet-dropdown-container">
           <p
             className="wallet-dropdown-item"
-            onClick={() => selectWallet("WalletAddress1")}
+            onClick={() =>
+              selectWallet("96ELyqufdPB46V9mzYmaihMMqPXJP7eXJF6WCmuLnq2C")
+            }
           >
-            WalletAddress1
+            96ELyqufdPB46V9mzYmaihMMqPXJP7eXJF6WCmuLnq2C
           </p>
           <p
             className="wallet-dropdown-item"
-            onClick={() => selectWallet("WalletAddress2")}
+            onClick={() =>
+              selectWallet("Fb4ECLa5HjoBqQASRJ7Kc6XmryzxoHgZD4zwYN5oD6bn")
+            }
           >
-            WalletAddress2
+            Fb4ECLa5HjoBqQASRJ7Kc6XmryzxoHgZD4zwYN5oD6bn
           </p>
           <p
             className="wallet-dropdown-item"
-            onClick={() => selectWallet("WalletAddress3")}
+            onClick={() =>
+              selectWallet("CKojTApWctPEfatkX3AqQLQQjTqNorBnCpLxLMwM7ENi")
+            }
           >
-            WalletAddress3
+            CKojTApWctPEfatkX3AqQLQQjTqNorBnCpLxLMwM7ENi
           </p>
         </div>
       )}

@@ -7,6 +7,8 @@
   --color-dark-blue: #344966;
   --color-black: #0d1821;
   --color-red: #fe654f;
+  --color-green: #00ff99;
+  --color-yellow: #ffd700;
 }
 
 body {
@@ -92,7 +94,7 @@ body {
   justify-content: center;
 }
 
-.wallet-selection-button-group button {
+button {
   background-color: var(--color-dark-blue);
   color: var(--color-white);
   border: none;
@@ -102,10 +104,10 @@ body {
   margin: 0.1rem;
 }
 
-.wallet-selection-button-group button:hover {
+button:hover {
   filter: brightness(0.9);
 }
-.wallet-selection-button-group button:active {
+button:active {
   filter: brightness(0.8);
 }
 
@@ -114,4 +116,177 @@ body {
   filter: brightness(1.2);
   margin: 0;
   font-family: monospace;
+}
+
+.wallet-dropdown-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0.2rem;
+}
+
+.wallet-dropdown-item {
+  background-color: var(--color-dark-blue);
+  color: var(--color-white);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  margin: 0.1rem;
+}
+
+.wallet-dropdown-item:hover {
+  filter: brightness(0.9);
+}
+.wallet-dropdown-item:active {
+  filter: brightness(0.8);
+}
+
+.balance-display-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 1rem;
+}
+
+.balance-text {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.balance-number {
+  font-size: 4rem;
+  color: var(--color-white);
+  margin: 0;
+}
+
+.balance-symbol {
+  color: var(--color-dark-blue);
+  filter: brightness(1.2);
+  margin: 0;
+}
+
+.home-button-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 90%;
+}
+
+.home-divider {
+  width: 90%;
+  border-color: var(--color-dark-blue);
+  background-color: var(--color-dark-blue);
+  margin: 1rem;
+}
+
+.bundle-history-title {
+  font-size: 1rem;
+  color: var(--color-dark-blue);
+  margin: 0;
+}
+
+.bundle-history-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.bundle-label-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+}
+
+.bundle-label-container > * {
+  margin: 0.5rem;
+}
+
+.symbol {
+  color: var(--color-dark-blue);
+  filter: brightness(1.2);
+}
+
+.bundle-label-text-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bundle-label-text-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0.5rem;
+}
+
+.bundle-label-text-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0.5rem;
+}
+
+.bundle-label-text-id {
+  font-size: 0.75rem;
+  color: var(--color-dark-blue);
+  margin: 0;
+}
+
+.bundle-label-text-status {
+  font-size: 0.7rem;
+  color: var(--color-dark-blue);
+  margin: 0;
+}
+
+.status-colour-landed {
+  color: var(--color-green);
+}
+
+.status-colour-failed {
+  color: var(--color-red);
+}
+
+.status-colour-pending {
+  color: var(--color-yellow);
+}
+
+@media (max-width: 600px) {
+  .bundle-label-container > * {
+    margin: 0.25rem;
+  }
+
+  .bundle-label-text-id {
+    font-size: 0.5rem;
+  }
+
+  .symbol {
+    font-size: 0.5rem;
+  }
+
+  .bundle-label-text-left {
+    margin: 0.25rem;
+  }
+
+  .bundle-label-text-right {
+    margin: 0.25rem;
+  }
+
+  .bundle-label-text-amount {
+    font-size: 0.75rem;
+  }
 }
