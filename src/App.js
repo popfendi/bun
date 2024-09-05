@@ -6,7 +6,7 @@ function App() {
   return (
     <div className="App">
       <p className="logo-text">BUN</p>
-      <Login />
+      <Login firstLogin={false} />
     </div>
   );
 }

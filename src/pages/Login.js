@@ -1,4 +1,4 @@
-const Login = () => {
+const Login = (props) => {
   return (
     <div className="login-container">
       <input
@@ -6,7 +6,10 @@ const Login = () => {
         type="password"
         placeholder="password"
       />
-      <button className="login-button">login</button>
+      <button className="login-button">
+        {props.firstLogin ? "register" : "login"}
+      </button>
+      <p className="login-text">All data is encrypted and stored locally.</p>
     </div>
   );
 };
