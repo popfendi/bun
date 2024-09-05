@@ -64,6 +64,11 @@ body {
   font-size: 1rem;
 }
 
+.login-text {
+  font-size: 0.75rem;
+  color: var(--color-dark-blue);
+}
+
 .logo-text {
   font-family: "Modak", system-ui;
   font-weight: 400;
