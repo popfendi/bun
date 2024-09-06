@@ -49,7 +49,23 @@ function App() {
   };
 
   useEffect(() => {
-    initDB();
+    initDB().then((success) => {
+      if (success) {
+        console.log("Database initialized successfully");
+      } else {
+        console.log("Failed to initialize database");
+      }
+    });
+
+    const handleBeforeUnload = () => {
+      sessionStorage.clear();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
   }, []);
 
   return (

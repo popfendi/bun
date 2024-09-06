@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const crypto = window.crypto || window.msCrypto;
 
@@ -9,6 +9,23 @@ const Login = (props) => {
   const handlePasswordChange = (e) => {
     setPassword(e.target.value);
   };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      if (props.firstLogin) {
+        register();
+      } else {
+        login();
+      }
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [password]);
 
   async function register() {
     try {
@@ -181,7 +198,12 @@ const Login = (props) => {
   }
 
   function setMasterKeyForSession(masterKey) {
-    console.log(masterKey);
+    if (window.sessionStorage) {
+      const encodedMasterKey = arrayBufferToBase64(masterKey);
+      sessionStorage.setItem("master", encodedMasterKey);
+    } else {
+      console.error("Session storage is not supported by this browser.");
+    }
   }
 
   async function retrieveAuthData() {
