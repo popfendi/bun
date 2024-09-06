@@ -1,13 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClone } from "@fortawesome/free-solid-svg-icons";
 import { faCaretDown } from "@fortawesome/free-solid-svg-icons";
 
-const WalletSelection = () => {
-  const [walletAddress, setWalletAddress] = useState(
-    "96ELyqufdPB46V9mzYmaihMMqPXJP7eXJF6WCmuLnq2C"
-  );
+const WalletSelection = (props) => {
+  const [walletAddress, setWalletAddress] = useState("No Accounts ");
   const [showDropdown, setShowDropdown] = useState(false);
+
+  useEffect(() => {
+    if (props.selectedAccount) {
+      setWalletAddress(props.selectedAccount.publicKey);
+    }
+  }, [props.selectedAccount]);
 
   const copyToClipboard = () => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -35,6 +39,7 @@ const WalletSelection = () => {
 
   const selectWallet = (address) => {
     setWalletAddress(address);
+    props.setSelectedAccount(address);
     setShowDropdown(false);
   };
 
@@ -55,30 +60,19 @@ const WalletSelection = () => {
       </div>
       {showDropdown && (
         <div className="wallet-dropdown-container">
-          <p
-            className="wallet-dropdown-item"
-            onClick={() =>
-              selectWallet("96ELyqufdPB46V9mzYmaihMMqPXJP7eXJF6WCmuLnq2C")
-            }
-          >
-            96ELyqufdPB46V9mzYmaihMMqPXJP7eXJF6WCmuLnq2C
-          </p>
-          <p
-            className="wallet-dropdown-item"
-            onClick={() =>
-              selectWallet("Fb4ECLa5HjoBqQASRJ7Kc6XmryzxoHgZD4zwYN5oD6bn")
-            }
-          >
-            Fb4ECLa5HjoBqQASRJ7Kc6XmryzxoHgZD4zwYN5oD6bn
-          </p>
-          <p
-            className="wallet-dropdown-item"
-            onClick={() =>
-              selectWallet("CKojTApWctPEfatkX3AqQLQQjTqNorBnCpLxLMwM7ENi")
-            }
-          >
-            CKojTApWctPEfatkX3AqQLQQjTqNorBnCpLxLMwM7ENi
-          </p>
+          {props.accounts.map((account) => (
+            <p
+              key={account.publicKey}
+              className={`wallet-dropdown-item ${
+                account.publicKey === props.selectedAccount.publicKey
+                  ? "selected-account"
+                  : ""
+              }`}
+              onClick={() => selectWallet(account.publicKey)}
+            >
+              {account.publicKey}
+            </p>
+          ))}
         </div>
       )}
     </div>

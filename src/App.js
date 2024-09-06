@@ -19,6 +19,8 @@ function App() {
         if (!database.objectStoreNames.contains("auth")) {
           console.log("creating store");
           database.createObjectStore("auth", { keyPath: "topic" });
+          database.createObjectStore("bundles", { keyPath: "id" });
+          database.createObjectStore("accounts", { keyPath: "publicKey" });
           setFirstLogin(true);
         }
       };
@@ -72,7 +74,7 @@ function App() {
     <div className="App">
       <p className="logo-text">BUN</p>
       {loggedIn ? (
-        <Home />
+        <Home db={db} />
       ) : (
         <Login
           firstLogin={firstLogin}
