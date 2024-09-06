@@ -1,28 +1,59 @@
 const crypto = window.crypto || window.msCrypto;
 
-export async function encryptData(privateKey, masterKey) {
+export async function encryptData(privateKey, masterKeyBase64) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+
+  const masterKey = base64ToArrayBuffer(masterKeyBase64);
+
+  const combinedKey = new Uint8Array([...new Uint8Array(masterKey), ...salt]);
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    await crypto.subtle.digest("SHA-256", combinedKey),
+    { name: "AES-GCM" },
+    false,
+    ["encrypt"]
+  );
+
+  const privateKeyArray =
+    typeof privateKey === "string"
+      ? new TextEncoder().encode(privateKey)
+      : privateKey;
   const encryptedPrivateKey = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv: iv },
-    masterKey,
-    privateKey
+    key,
+    privateKeyArray
   );
 
   return {
     encryptedPrivateKey: arrayBufferToBase64(encryptedPrivateKey),
     iv: arrayBufferToBase64(iv),
+    salt: arrayBufferToBase64(salt),
   };
 }
 
 export async function decryptData(encryptionData, masterKey) {
   const iv = base64ToArrayBuffer(encryptionData.iv);
+  const salt = base64ToArrayBuffer(encryptionData.salt);
   const encryptedPrivateKey = base64ToArrayBuffer(
     encryptionData.encryptedPrivateKey
   );
 
+  const key = await crypto.subtle.importKey(
+    "raw",
+    await crypto.subtle.digest(
+      "SHA-256",
+      new Uint8Array([...masterKey, ...salt])
+    ),
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"]
+  );
+
   const decryptedPrivateKey = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: iv },
-    masterKey,
+    key,
     encryptedPrivateKey
   );
 
