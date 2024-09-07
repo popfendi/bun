@@ -28,24 +28,27 @@ export async function encryptData(privateKey, masterKeyBase64) {
 
   return {
     encryptedPrivateKey: arrayBufferToBase64(encryptedPrivateKey),
-    iv: arrayBufferToBase64(iv),
-    salt: arrayBufferToBase64(salt),
+    keyEncryptionIV: arrayBufferToBase64(iv),
+    keyEncryptionSalt: arrayBufferToBase64(salt),
   };
 }
 
 export async function decryptData(encryptionData, masterKey) {
-  const iv = base64ToArrayBuffer(encryptionData.iv);
-  const salt = base64ToArrayBuffer(encryptionData.salt);
+  const iv = base64ToArrayBuffer(encryptionData.keyEncryptionIV);
+  const salt = base64ToArrayBuffer(encryptionData.keyEncryptionSalt);
   const encryptedPrivateKey = base64ToArrayBuffer(
     encryptionData.encryptedPrivateKey
   );
+  const mk = base64ToArrayBuffer(masterKey);
+
+  const combinedKey = new Uint8Array([
+    ...new Uint8Array(mk),
+    ...new Uint8Array(salt),
+  ]);
 
   const key = await crypto.subtle.importKey(
     "raw",
-    await crypto.subtle.digest(
-      "SHA-256",
-      new Uint8Array([...masterKey, ...salt])
-    ),
+    await crypto.subtle.digest("SHA-256", combinedKey),
     { name: "AES-GCM" },
     false,
     ["decrypt"]
@@ -57,20 +60,17 @@ export async function decryptData(encryptionData, masterKey) {
     encryptedPrivateKey
   );
 
-  return new Uint8Array(decryptedPrivateKey);
+  return new TextDecoder().decode(new Uint8Array(decryptedPrivateKey));
 }
 
-export function base64ToArrayBuffer(base64) {
-  var binaryString = atob(base64);
-  var bytes = new Uint8Array(binaryString.length);
-  for (var i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
+// https://stackoverflow.com/a/11562550/9014097 or https://stackoverflow.com/a/9458996/9014097
+export function arrayBufferToBase64(arrayBuffer) {
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(arrayBuffer)));
 }
 
-export function arrayBufferToBase64(buffer) {
-  return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
+// https://stackoverflow.com/a/41106346 or https://stackoverflow.com/a/21797381/9014097
+export function base64ToArrayBuffer(base64string) {
+  return Uint8Array.from(atob(base64string), (c) => c.charCodeAt(0));
 }
 
 export function timingSafeEqual(a, b) {

@@ -9,7 +9,7 @@ import {
   isValidBase58PrivateKey,
   getPublicKeyFromPrivateKey,
 } from "../utils/Solana";
-import { encryptData } from "../utils/Encrypt";
+import { encryptData, decryptData } from "../utils/Encrypt";
 
 Modal.setAppElement("#root");
 
@@ -114,10 +114,21 @@ const Home = (props) => {
     const newAccount = new Account(
       publicKey,
       encryptionData.encryptedPrivateKey,
-      encryptionData.salt,
-      encryptionData.iv
+      encryptionData.keyEncryptionSalt,
+      encryptionData.keyEncryptionIV
     );
     await addAndSelectAccount(newAccount);
+  };
+
+  const decryptTest = async () => {
+    const masterKey = sessionStorage.getItem("master");
+    console.log(selectedAccount.decryptionData);
+    console.log(masterKey);
+    const decrypted = await decryptData(
+      selectedAccount.decryptionData,
+      masterKey
+    );
+    console.log(decrypted);
   };
 
   const addAndSelectAccount = async (account) => {
@@ -162,7 +173,7 @@ const Home = (props) => {
       />
       <BalanceDisplay selectedAccount={selectedAccount} />
       <div className="home-button-group">
-        <button>
+        <button onClick={decryptTest}>
           <FontAwesomeIcon icon={faGear} />
         </button>
         <p className="bundle-history-title">Bundle History</p>
