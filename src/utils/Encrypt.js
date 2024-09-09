@@ -63,6 +63,36 @@ export async function decryptData(encryptionData, masterKey) {
   return new TextDecoder().decode(new Uint8Array(decryptedPrivateKey));
 }
 
+export async function decryptTempKey(encryptionData, masterKey) {
+  const iv = base64ToArrayBuffer(encryptionData.keyEncryptionIV);
+  const salt = base64ToArrayBuffer(encryptionData.keyEncryptionSalt);
+  const encryptedPrivateKey = base64ToArrayBuffer(
+    encryptionData.encryptedPrivateKey
+  );
+  const mk = base64ToArrayBuffer(masterKey);
+
+  const combinedKey = new Uint8Array([
+    ...new Uint8Array(mk),
+    ...new Uint8Array(salt),
+  ]);
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    await crypto.subtle.digest("SHA-256", combinedKey),
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"]
+  );
+
+  const decryptedPrivateKey = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: iv },
+    key,
+    encryptedPrivateKey
+  );
+
+  return decryptedPrivateKey;
+}
+
 // https://stackoverflow.com/a/11562550/9014097 or https://stackoverflow.com/a/9458996/9014097
 export function arrayBufferToBase64(arrayBuffer) {
   return btoa(String.fromCharCode.apply(null, new Uint8Array(arrayBuffer)));
@@ -148,4 +178,13 @@ export async function encryptMasterKey(masterKey, keyEncryptionKey) {
     masterKey
   );
   return { encryptedMasterKey: new Uint8Array(encryptedMasterKey), iv };
+}
+
+export async function generateTemporaryKey() {
+  const key = await crypto.subtle.generateKey(
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"]
+  );
+  return crypto.subtle.exportKey("raw", key);
 }

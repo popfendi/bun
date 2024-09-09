@@ -60,7 +60,7 @@ function App() {
     });
 
     const handleBeforeUnload = () => {
-      sessionStorage.clear();
+      sessionStorage.removeItem("master");
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);

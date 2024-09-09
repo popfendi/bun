@@ -7,6 +7,9 @@ import {
   arrayBufferToBase64,
   base64ToArrayBuffer,
   verifyPassword,
+  generateTemporaryKey,
+  encryptData,
+  decryptTempKey,
 } from "../utils/Encrypt";
 
 const crypto = window.crypto || window.msCrypto;
@@ -28,6 +31,24 @@ const Login = (props) => {
       }
     }
   };
+
+  async function checkIfLoggedIn() {
+    const storedMasterKey = await getStoredMasterKey();
+    console.log(storedMasterKey);
+    if (storedMasterKey) {
+      console.log("setting master key for session");
+      setMasterKeyForSession(storedMasterKey);
+
+      props.setLoggedIn(true);
+      return;
+    }
+  }
+
+  useEffect(() => {
+    if (!props.firstLogin) {
+      checkIfLoggedIn();
+    }
+  }, []);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -75,6 +96,7 @@ const Login = (props) => {
       await storeAuthData(authData);
 
       setMasterKeyForSession(masterKey);
+      await storeTemporaryAccess(masterKey);
       props.setLoggedIn(true);
     } catch (error) {
       console.error("Registration failed:", error);
@@ -102,11 +124,49 @@ const Login = (props) => {
 
       setMasterKeyForSession(masterKey);
       await updateLastLogin();
+      await storeTemporaryAccess(masterKey);
       props.setLoggedIn(true);
     } catch (error) {
       console.error("Login failed:", error);
       setLoginError(true);
     }
+  }
+
+  async function storeTemporaryAccess(masterKey) {
+    const tempKey = await generateTemporaryKey();
+    const encryptedData = await encryptData(
+      masterKey,
+      arrayBufferToBase64(tempKey)
+    );
+
+    const expirationTime = Date.now() + 30 * 60 * 1000;
+
+    sessionStorage.setItem("encryptedMasterKey", JSON.stringify(encryptedData));
+    sessionStorage.setItem("masterKeyExpiration", expirationTime.toString());
+    sessionStorage.setItem("tempKey", arrayBufferToBase64(tempKey));
+  }
+
+  async function getStoredMasterKey() {
+    const expirationTime = parseInt(
+      sessionStorage.getItem("masterKeyExpiration") || "0",
+      10
+    );
+    if (Date.now() > expirationTime) {
+      sessionStorage.removeItem("encryptedMasterKey");
+      sessionStorage.removeItem("masterKeyExpiration");
+      sessionStorage.removeItem("tempKey");
+      return null;
+    }
+    const encryptedData = JSON.parse(
+      sessionStorage.getItem("encryptedMasterKey") || "null"
+    );
+    const tempKey = sessionStorage.getItem("tempKey");
+
+    if (!encryptedData || !tempKey) {
+      return null;
+    }
+
+    return await decryptTempKey(encryptedData, tempKey);
   }
 
   async function storeAuthData(authData) {
@@ -116,12 +176,9 @@ const Login = (props) => {
   }
 
   function setMasterKeyForSession(masterKey) {
-    if (window.sessionStorage) {
-      const encodedMasterKey = arrayBufferToBase64(masterKey);
-      sessionStorage.setItem("master", encodedMasterKey);
-    } else {
-      console.error("Session storage is not supported by this browser.");
-    }
+    console.log(masterKey);
+    const encodedMasterKey = arrayBufferToBase64(masterKey);
+    sessionStorage.setItem("master", encodedMasterKey);
   }
 
   async function retrieveAuthData() {
