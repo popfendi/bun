@@ -4,12 +4,16 @@ import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import * as buffer from "buffer";
+import { MessageProvider } from "./context/MessageContext";
+
 window.Buffer = buffer.Buffer;
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <App />
+    <MessageProvider>
+      <App />
+    </MessageProvider>
   </React.StrictMode>
 );
 

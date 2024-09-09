@@ -34,7 +34,6 @@ const Login = (props) => {
 
   async function checkIfLoggedIn() {
     const storedMasterKey = await getStoredMasterKey();
-    console.log(storedMasterKey);
     if (storedMasterKey) {
       console.log("setting master key for session");
       setMasterKeyForSession(storedMasterKey);
@@ -176,7 +175,6 @@ const Login = (props) => {
   }
 
   function setMasterKeyForSession(masterKey) {
-    console.log(masterKey);
     const encodedMasterKey = arrayBufferToBase64(masterKey);
     sessionStorage.setItem("master", encodedMasterKey);
   }

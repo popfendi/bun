@@ -1,12 +1,15 @@
 import "./App.css";
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, useContext } from "react";
+import { MessageContext } from "./context/MessageContext";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
+
 function App() {
   const [db, setDb] = useState(null);
   const [firstLogin, setFirstLogin] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
+
+  const { on, sendMessage } = useContext(MessageContext);
 
   const initDB = () => {
     return new Promise((resolve) => {
@@ -69,6 +72,19 @@ function App() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
+
+  /*useEffect(() => {
+    on("PopupLoaded", (params, event) => {
+      console.log("PopupLoaded event received with params:", params);
+
+      
+      sendMessage(
+        { event: "PopupLoadedAck", data: { version: "1.0.0" } },
+        event.origin,
+        event.source
+      );
+    });
+  }, [on, sendMessage]); */
 
   return (
     <div className="App">

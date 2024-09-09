@@ -122,8 +122,6 @@ const Home = (props) => {
 
   const decryptTest = async () => {
     const masterKey = sessionStorage.getItem("master");
-    console.log(selectedAccount.decryptionData);
-    console.log(masterKey);
     const decrypted = await decryptData(
       selectedAccount.decryptionData,
       masterKey
