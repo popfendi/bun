@@ -7,12 +7,12 @@ const MessageProvider = ({ children }) => {
 
   useEffect(() => {
     const handleMessage = (event) => {
-      console.log("Message received:", event.origin);
+      console.log("Message received:", event);
 
-      const { method, params } = event.data;
+      const { method, params, requestId } = event.data;
       if (listeners.current[method]) {
         listeners.current[method].forEach((callback) =>
-          callback(params, event)
+          callback(params, event, requestId)
         );
       }
     };
