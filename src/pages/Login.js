@@ -140,26 +140,26 @@ const Login = (props) => {
 
     const expirationTime = Date.now() + 30 * 60 * 1000;
 
-    sessionStorage.setItem("encryptedMasterKey", JSON.stringify(encryptedData));
-    sessionStorage.setItem("masterKeyExpiration", expirationTime.toString());
-    sessionStorage.setItem("tempKey", arrayBufferToBase64(tempKey));
+    localStorage.setItem("encryptedMasterKey", JSON.stringify(encryptedData));
+    localStorage.setItem("masterKeyExpiration", expirationTime.toString());
+    localStorage.setItem("tempKey", arrayBufferToBase64(tempKey));
   }
 
   async function getStoredMasterKey() {
     const expirationTime = parseInt(
-      sessionStorage.getItem("masterKeyExpiration") || "0",
+      localStorage.getItem("masterKeyExpiration") || "0",
       10
     );
     if (Date.now() > expirationTime) {
-      sessionStorage.removeItem("encryptedMasterKey");
-      sessionStorage.removeItem("masterKeyExpiration");
-      sessionStorage.removeItem("tempKey");
+      localStorage.removeItem("encryptedMasterKey");
+      localStorage.removeItem("masterKeyExpiration");
+      localStorage.removeItem("tempKey");
       return null;
     }
     const encryptedData = JSON.parse(
-      sessionStorage.getItem("encryptedMasterKey") || "null"
+      localStorage.getItem("encryptedMasterKey") || "null"
     );
-    const tempKey = sessionStorage.getItem("tempKey");
+    const tempKey = localStorage.getItem("tempKey");
 
     if (!encryptedData || !tempKey) {
       return null;
