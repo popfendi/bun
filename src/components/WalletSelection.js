@@ -34,6 +34,7 @@ const WalletSelection = (props) => {
   };
 
   const toggleDropdown = () => {
+    console.log(props.accounts);
     setShowDropdown(!showDropdown);
   };
 

@@ -5,15 +5,18 @@ import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import * as buffer from "buffer";
 import { MessageProvider } from "./context/MessageContext";
+import { IndexedDBProvider } from "./context/IndexeDBContext";
 
 window.Buffer = buffer.Buffer;
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <MessageProvider>
-      <App />
-    </MessageProvider>
+    <IndexedDBProvider>
+      <MessageProvider>
+        <App />
+      </MessageProvider>
+    </IndexedDBProvider>
   </React.StrictMode>
 );
 

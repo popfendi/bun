@@ -348,6 +348,17 @@ button:active {
   background: var(--color-light-blue);
 }
 
+.request-page-title {
+  font-size: 1rem;
+  color: var(--color-light-blue);
+  margin: 0;
+}
+
+.connect-origin {
+  font-weight: bold;
+  color: var(--color-green);
+}
+
 @media (max-width: 600px) {
   .bundle-label-container > * {
     margin: 0.25rem;

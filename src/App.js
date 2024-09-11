@@ -3,65 +3,35 @@ import { useEffect, useState, useContext } from "react";
 import { MessageContext } from "./context/MessageContext";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
+import RequestPage from "./pages/RequestPage";
+import { useIndexedDB } from "./context/IndexeDBContext";
+
+const connectRequest = {
+  params: {
+    onlyIfTrusted: true,
+  },
+  event: {
+    origin: "https://example.com",
+    source: window,
+  },
+  method: "connect",
+};
 
 function App() {
-  const [db, setDb] = useState(null);
-  const [firstLogin, setFirstLogin] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
-
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const {
+    readDomain,
+    createDomain,
+    deleteDomain,
+    selectedAccount,
+    setSelectedAccount,
+    isLoggedIn,
+    setIsLoggedIn,
+    firstLogin,
+  } = useIndexedDB();
   const { on, off, sendMessage } = useContext(MessageContext);
 
-  const initDB = () => {
-    return new Promise((resolve) => {
-      let database;
-      let request = indexedDB.open("BUN");
-
-      request.onupgradeneeded = () => {
-        database = request.result;
-
-        if (!database.objectStoreNames.contains("auth")) {
-          console.log("creating store");
-          database.createObjectStore("auth", { keyPath: "topic" });
-          database.createObjectStore("bundles", { keyPath: "id" });
-          database.createObjectStore("accounts", { keyPath: "publicKey" });
-          setFirstLogin(true);
-        }
-      };
-
-      request.onsuccess = () => {
-        setDb(request.result);
-        console.log("store created");
-        const transaction = request.result.transaction("auth", "readonly");
-        const store = transaction.objectStore("auth");
-        const countRequest = store.count();
-
-        countRequest.onsuccess = () => {
-          if (countRequest.result === 0) {
-            setFirstLogin(true);
-          }
-        };
-
-        countRequest.onerror = () => {
-          console.error("Error checking auth store count");
-        };
-        resolve(true);
-      };
-
-      request.onerror = () => {
-        resolve(false);
-      };
-    });
-  };
-
   useEffect(() => {
-    initDB().then((success) => {
-      if (success) {
-        console.log("Database initialized successfully");
-      } else {
-        console.log("Failed to initialize database");
-      }
-    });
-
     const handleBeforeUnload = () => {
       sessionStorage.removeItem("master");
     };
@@ -82,25 +52,58 @@ function App() {
       );
     };
 
-    const handleConnect = (params, event, id) => {
+    const handleConnect = async (params, event, id) => {
       // check if params contains onlyIfTrusted prop, if true, check if origin is in connected list and connect or reject
       // if false, send reject { code: 4001, message: 'User rejected the request.' }
       // if params does not contain onlyIfTrusted prop
       // prompt user to connect
       // if user clicks cancel, send reject { code: 4001, message: 'User rejected the request.' }
       // if user clicks connect, send accept and public key and set connected to origin and persist origin in connected list
-      sendMessage(
-        { event: "connect", data: { account: "123456" }, requestId: id },
-        event.origin,
-        event.source
-      );
+      if (params.onlyIfTrusted) {
+        const domain = await readDomain(event.origin);
+        if (domain) {
+          sendMessage(
+            {
+              method: "connect",
+              data: { account: selectedAccount.publicKey },
+              requestId: id,
+              status: "success",
+            },
+            event.origin,
+            event.source
+          );
+        } else {
+          sendMessage(
+            {
+              method: "connect",
+              data: {
+                error: { code: 4001, message: "User rejected the request." },
+              },
+              requestId: id,
+              status: "rejected",
+            },
+            event.origin,
+            event.source
+          );
+        }
+      } else {
+        setPendingRequests((prevRequests) => [
+          ...prevRequests,
+          { method: "connect", params, event, requestId: id },
+        ]);
+      }
     };
 
     const handleDisconnect = (params, event, id) => {
       // remove origin from connected list and state
       // send disconnect to origin
       sendMessage(
-        { event: "disconnect", data: {}, requestId: id },
+        {
+          method: "disconnect",
+          data: {},
+          requestId: id,
+          status: "success",
+        },
         event.origin,
         event.source
       );
@@ -113,16 +116,10 @@ function App() {
       // sign bundle
       // send bundle to jito and wait on status
       // return bundle id to origin
-
-      sendMessage(
-        {
-          event: "signAndSendBundle",
-          data: { bundleId: "123456" },
-          requestId: id,
-        },
-        event.origin,
-        event.source
-      );
+      setPendingRequests((prevRequests) => [
+        ...prevRequests,
+        { method: "signAndSendBundle", params, event, requestId: id },
+      ]);
     };
 
     on("PopupLoaded", handlePopupLoaded);
@@ -138,18 +135,90 @@ function App() {
     };
   }, [on, off, sendMessage]);
 
+  const handleSign = async (request) => {
+    switch (request.method) {
+      case "connect":
+        await createDomain({ domain: request.event.origin });
+        sendMessage(
+          {
+            method: "connect",
+            data: { account: selectedAccount.publicKey },
+            requestId: request.requestId,
+            status: "success",
+          },
+          request.event.origin,
+          request.event.source
+        );
+        break;
+      case "signAndSendBundle":
+        sendMessage(
+          {
+            event: "signAndSendBundleResponse",
+            data: {},
+            requestId: request.requestId,
+            status: "success",
+          },
+          request.event.origin,
+          request.event.source
+        );
+        break;
+    }
+    setPendingRequests((prevRequests) => prevRequests.slice(1));
+  };
+
+  const handleReject = (request) => {
+    switch (request.method) {
+      case "connect":
+        sendMessage(
+          {
+            method: "connect",
+            data: {
+              error: { code: 4001, message: "User rejected the request." },
+            },
+            requestId: request.requestId,
+            status: "rejected",
+          },
+          request.event.origin,
+          request.event.source
+        );
+        break;
+
+      case "signAndSendBundle":
+        sendMessage(
+          {
+            event: "signAndSendBundleResponse",
+            data: {
+              error: { code: 4001, message: "User rejected the request." },
+            },
+            requestId: request.requestId,
+            status: "rejected",
+          },
+          request.event.origin,
+          request.event.source
+        );
+        break;
+    }
+    setPendingRequests((prevRequests) => prevRequests.slice(1));
+  };
+
   return (
     <div className="App">
       <p className="logo-text">BUN</p>
-      {loggedIn ? (
-        <Home db={db} />
+      {isLoggedIn ? (
+        pendingRequests.length > 0 ? (
+          <RequestPage
+            requestDetails={pendingRequests[0]}
+            onSign={handleSign}
+            onReject={handleReject}
+          />
+        ) : (
+          <Home
+            selectedAccount={selectedAccount}
+            setSelectedAccount={setSelectedAccount}
+          />
+        )
       ) : (
-        <Login
-          firstLogin={firstLogin}
-          db={db}
-          setDb={setDb}
-          setLoggedIn={setLoggedIn}
-        />
+        <Login firstLogin={firstLogin} setLoggedIn={setIsLoggedIn} />
       )}
     </div>
   );
