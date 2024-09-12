@@ -6,17 +6,6 @@ import Home from "./pages/Home";
 import RequestPage from "./pages/RequestPage";
 import { useIndexedDB } from "./context/IndexeDBContext";
 
-const connectRequest = {
-  params: {
-    onlyIfTrusted: true,
-  },
-  event: {
-    origin: "https://example.com",
-    source: window,
-  },
-  method: "connect",
-};
-
 function App() {
   const [pendingRequests, setPendingRequests] = useState([]);
   const {
@@ -28,6 +17,8 @@ function App() {
     isLoggedIn,
     setIsLoggedIn,
     firstLogin,
+    checkDataLoaded,
+    onLoadAccount,
   } = useIndexedDB();
   const { on, off, sendMessage } = useContext(MessageContext);
 
@@ -53,19 +44,14 @@ function App() {
     };
 
     const handleConnect = async (params, event, id) => {
-      // check if params contains onlyIfTrusted prop, if true, check if origin is in connected list and connect or reject
-      // if false, send reject { code: 4001, message: 'User rejected the request.' }
-      // if params does not contain onlyIfTrusted prop
-      // prompt user to connect
-      // if user clicks cancel, send reject { code: 4001, message: 'User rejected the request.' }
-      // if user clicks connect, send accept and public key and set connected to origin and persist origin in connected list
+      await checkDataLoaded();
       if (params.onlyIfTrusted) {
         const domain = await readDomain(event.origin);
         if (domain) {
           sendMessage(
             {
               method: "connect",
-              data: { account: selectedAccount.publicKey },
+              data: { account: onLoadAccount.current },
               requestId: id,
               status: "success",
             },
@@ -138,7 +124,10 @@ function App() {
   const handleSign = async (request) => {
     switch (request.method) {
       case "connect":
-        await createDomain({ domain: request.event.origin });
+        const domain = await readDomain(request.event.origin);
+        if (!domain) {
+          await createDomain({ domain: request.event.origin });
+        }
         sendMessage(
           {
             method: "connect",

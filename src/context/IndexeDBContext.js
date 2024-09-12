@@ -63,6 +63,8 @@ export function useIndexedDB() {
 export function IndexedDBProvider({ children }) {
   const dbRef = useRef(null);
   const dbInitializedRef = useRef(null);
+  const dataLoadedRef = useRef(null);
+  const onLoadAccount = useRef(null);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [bundles, setBundles] = useState([]);
@@ -259,26 +261,63 @@ export function IndexedDBProvider({ children }) {
   }, [setSelectedAccountAndUpdateStorage]);
 
   const fetchHomeData = useCallback(async () => {
-    try {
-      const accounts = await getAccounts();
-      const bundles = await getBundles();
-      setAccounts(accounts);
-      setBundles(bundles);
+    if (!dataLoadedRef.current) {
+      dataLoadedRef.current = new Promise(async (resolve) => {
+        try {
+          const accounts = await getAccounts();
+          const bundles = await getBundles();
+          setAccounts(accounts);
+          setBundles(bundles);
 
-      const selectedPublicKey = localStorage.getItem("selectedAccount");
-      let selectedAccount = null;
-      if (selectedPublicKey) {
-        selectedAccount = accounts.find(
-          (account) => account.publicKey === selectedPublicKey
-        );
-      } else {
-        selectedAccount = accounts[0];
-      }
-      setSelectedAccount(selectedAccount);
-    } catch (error) {
-      console.error("Error fetching data from IndexedDB:", error);
+          const selectedPublicKey = localStorage.getItem("selectedAccount");
+          let selectedAccount = null;
+          if (selectedPublicKey) {
+            selectedAccount = accounts.find(
+              (account) => account.publicKey === selectedPublicKey
+            );
+          } else {
+            selectedAccount = accounts[0];
+          }
+          setSelectedAccount(selectedAccount);
+          onLoadAccount.current = selectedAccount.publicKey;
+          console.log(onLoadAccount.current);
+          resolve(true);
+        } catch (error) {
+          console.error("Error fetching data from IndexedDB:", error);
+          resolve(false);
+        }
+      });
     }
+    return dataLoadedRef.current;
   }, [getAccounts, getBundles]);
+
+  // was having issus with postmessage not waiting for data before trying to handle.
+  const checkDataLoaded = async () => {
+    return new Promise(async (resolve) => {
+      console.log(onLoadAccount.current);
+
+      // wait until dbInitializedRef.current is a promise and resolved
+      while (
+        !dbInitializedRef.current ||
+        !(dbInitializedRef.current instanceof Promise)
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      await dbInitializedRef.current;
+
+      // wait until dataLoadedRef.current is a promise and resolved
+      while (
+        !dataLoadedRef.current ||
+        !(dataLoadedRef.current instanceof Promise)
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      await dataLoadedRef.current;
+
+      console.log(onLoadAccount.current);
+      resolve(true);
+    });
+  };
 
   const register = useCallback(
     async (password) => {
@@ -428,7 +467,6 @@ export function IndexedDBProvider({ children }) {
   }, [checkIfLoggedIn]);
 
   const value = {
-    initDB,
     getAll,
     add,
     get,
@@ -455,6 +493,8 @@ export function IndexedDBProvider({ children }) {
     firstLogin,
     setMasterKeyForSession,
     getStoredMasterKey,
+    checkDataLoaded,
+    onLoadAccount,
   };
 
   return (
