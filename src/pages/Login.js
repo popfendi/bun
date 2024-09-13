@@ -34,7 +34,7 @@ const Login = (props) => {
 
   const handleRegister = async () => {
     try {
-      await register(password);
+      await register();
       props.setLoggedIn(true);
     } catch (error) {
       console.error("Registration failed:", error);
@@ -44,8 +44,7 @@ const Login = (props) => {
 
   const handleLogin = async () => {
     try {
-      console.log(password);
-      await login(password);
+      await login();
       props.setLoggedIn(true);
     } catch (error) {
       console.error("Login failed:", error);

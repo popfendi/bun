@@ -14,6 +14,7 @@ import {
   encryptData,
   decryptData,
   hashPassword,
+  extractPublicKey,
   verifyPassword,
   deriveKeyFromPassword,
   encryptMasterKey,
@@ -23,6 +24,11 @@ import {
   arrayBufferToBase64,
   base64ToArrayBuffer,
 } from "../utils/Encrypt";
+import {
+  startRegistration,
+  startAuthentication,
+} from "@simplewebauthn/browser";
+import { isoBase64URL } from "@simplewebauthn/server/helpers";
 
 const IndexedDBContext = createContext(null);
 
@@ -319,82 +325,138 @@ export function IndexedDBProvider({ children }) {
     });
   };
 
-  const register = useCallback(
-    async (password) => {
+  const register = useCallback(async () => {
+    const crypto = window.crypto || window.msCrypto;
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const challengeBuffer = isoBase64URL.fromBuffer(challenge);
+      const publicKeyCredentialCreationOptions = {
+        challenge: challengeBuffer.toString(),
+        rp: {
+          name: "BUN",
+          id: window.location.hostname,
+        },
+        user: {
+          name: "BUN",
+          displayName: "BUN",
+          id: "id",
+        },
+        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required",
+        },
+        timeout: 60000,
+      };
+      const credential = await startRegistration(
+        publicKeyCredentialCreationOptions
+      );
+      console.log(credential);
+      const publicKey = extractPublicKey(credential.response.attestationObject);
+
+      const masterKey = crypto.getRandomValues(new Uint8Array(32));
+      const keyEncryptionSalt = crypto.getRandomValues(new Uint8Array(16));
+      const keyEncryptionKey = await crypto.subtle.importKey(
+        "raw",
+        publicKey,
+        { name: "ECDH", namedCurve: "P-256" },
+        false,
+        ["deriveKey"]
+      );
+      console.log(keyEncryptionKey);
+      const { encryptedMasterKey, iv: keyEncryptionIV } =
+        await encryptMasterKey(masterKey, keyEncryptionKey);
+
+      const authData = {
+        topic: "auth",
+        auth: {
+          credentialId: arrayBufferToBase64(credential.rawId),
+          publicKey: arrayBufferToBase64(publicKey),
+          counter: 0,
+          passwordVersion: 2,
+        },
+        encryption: {
+          encryptedMasterKey: arrayBufferToBase64(encryptedMasterKey),
+          keyEncryptionIV: arrayBufferToBase64(keyEncryptionIV),
+          keyEncryptionSalt: arrayBufferToBase64(keyEncryptionSalt),
+        },
+        meta: {
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+          version: "1.0",
+        },
+      };
+
+      await add("auth", authData);
+      setMasterKeyForSession(masterKey);
+      await storeTemporaryAccess(masterKey);
+      setIsLoggedIn(true);
+    } catch (error) {
+      console.error("Registration failed:", error);
+      throw error;
+    }
+  }, [add]);
+
+  const login = useCallback(async () => {
+    try {
+      const storedData = await get("auth", "auth");
+
       const crypto = window.crypto || window.msCrypto;
-      try {
-        const authSalt = crypto.getRandomValues(new Uint8Array(16));
-        const passwordHash = await hashPassword(password, authSalt);
-        const masterKey = crypto.getRandomValues(new Uint8Array(32));
-        const keyEncryptionSalt = crypto.getRandomValues(new Uint8Array(16));
-        const keyEncryptionKey = await deriveKeyFromPassword(
-          password,
-          keyEncryptionSalt
-        );
-        const { encryptedMasterKey, iv: keyEncryptionIV } =
-          await encryptMasterKey(masterKey, keyEncryptionKey);
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
 
-        const authData = {
-          topic: "auth",
-          auth: {
-            salt: arrayBufferToBase64(authSalt),
-            passwordHash: arrayBufferToBase64(passwordHash),
-            passwordVersion: 1,
+      const publicKeyCredentialRequestOptions = {
+        challenge,
+        allowCredentials: [
+          {
+            id: base64ToArrayBuffer(storedData.auth.credentialId),
+            type: "public-key",
+            transports: ["internal"],
           },
-          encryption: {
-            encryptedMasterKey: arrayBufferToBase64(encryptedMasterKey),
-            keyEncryptionIV: arrayBufferToBase64(keyEncryptionIV),
-            keyEncryptionSalt: arrayBufferToBase64(keyEncryptionSalt),
-          },
-          meta: {
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            version: "1.0",
-          },
-        };
+        ],
+        userVerification: "required",
+        timeout: 60000,
+      };
+      const assertion = await startAuthentication(
+        publicKeyCredentialRequestOptions
+      );
+      if (assertion.response.authenticatorData) {
+        // Extract counter from authenticator data
+        const dataView = new DataView(assertion.response.authenticatorData);
+        const counter = dataView.getUint32(33);
 
-        await add("auth", authData);
-        setMasterKeyForSession(masterKey);
-        await storeTemporaryAccess(masterKey);
-        setIsLoggedIn(true);
-      } catch (error) {
-        console.error("Registration failed:", error);
-        throw error;
-      }
-    },
-    [add]
-  );
-
-  const login = useCallback(
-    async (password) => {
-      try {
-        const storedData = await get("auth", "auth");
-        const isPasswordValid = await verifyPassword(password, storedData.auth);
-        if (!isPasswordValid) {
-          throw new Error("Invalid password");
+        // Verify counter (prevent replay attacks)
+        if (counter <= storedData.auth.counter) {
+          throw new Error("Potential replay attack detected");
         }
 
-        const derivedKey = await deriveKeyFromPassword(
-          password,
-          base64ToArrayBuffer(storedData.encryption.keyEncryptionSalt)
-        );
-
-        const masterKey = await decryptMasterKey(
-          derivedKey,
-          storedData.encryption
-        );
-
-        setMasterKeyForSession(masterKey);
-        await updateLastLogin();
-        await storeTemporaryAccess(masterKey);
-        setIsLoggedIn(true);
-      } catch (error) {
-        console.error("Login failed:", error);
-        throw error;
+        // Update counter
+        storedData.auth.counter = counter;
+        await add("auth", storedData);
       }
-    },
-    [get]
-  );
+
+      // Decrypt master key
+      const publicKey = base64ToArrayBuffer(storedData.auth.publicKey);
+      const keyEncryptionKey = await crypto.subtle.importKey(
+        "raw",
+        publicKey,
+        { name: "ECDH", namedCurve: "P-256" },
+        false,
+        ["deriveKey"]
+      );
+      const masterKey = await decryptMasterKey(
+        keyEncryptionKey,
+        storedData.encryption
+      );
+
+      setMasterKeyForSession(masterKey);
+      await updateLastLogin();
+      await storeTemporaryAccess(masterKey);
+      setIsLoggedIn(true);
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
+    }
+  }, [get]);
 
   const logout = useCallback(() => {
     sessionStorage.removeItem("master");

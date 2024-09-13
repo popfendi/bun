@@ -1,3 +1,7 @@
+import {
+  decodeAttestationObject,
+  isoBase64URL,
+} from "@simplewebauthn/server/helpers";
 const crypto = window.crypto || window.msCrypto;
 
 export async function encryptData(privateKey, masterKeyBase64) {
@@ -126,17 +130,6 @@ export async function hashPassword(password, salt) {
   return new Uint8Array(hashBuffer);
 }
 
-export async function decryptMasterKey(derivedKey, encryptionData) {
-  const iv = base64ToArrayBuffer(encryptionData.keyEncryptionIV);
-  const encryptedKey = base64ToArrayBuffer(encryptionData.encryptedMasterKey);
-  const decryptedKey = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: iv },
-    derivedKey,
-    encryptedKey
-  );
-  return new Uint8Array(decryptedKey);
-}
-
 export async function deriveKeyFromPassword(password, salt) {
   const encoder = new TextEncoder();
   const passwordData = encoder.encode(password);
@@ -170,16 +163,6 @@ export async function verifyPassword(password, authData) {
   );
 }
 
-export async function encryptMasterKey(masterKey, keyEncryptionKey) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encryptedMasterKey = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv },
-    keyEncryptionKey,
-    masterKey
-  );
-  return { encryptedMasterKey: new Uint8Array(encryptedMasterKey), iv };
-}
-
 export async function generateTemporaryKey() {
   const key = await crypto.subtle.generateKey(
     { name: "AES-GCM", length: 256 },
@@ -187,4 +170,114 @@ export async function generateTemporaryKey() {
     ["encrypt", "decrypt"]
   );
   return crypto.subtle.exportKey("raw", key);
+}
+
+export function extractPublicKey(attestationObject) {
+  const attestationBuffer = isoBase64URL.toBuffer(attestationObject);
+  const decodedAttestationObject = decodeAttestationObject(attestationBuffer);
+  console.log(decodedAttestationObject);
+  const authData = decodedAttestationObject.get("authData");
+  console.log(authData);
+  const dataView = new DataView(authData.buffer);
+  const publicKeyLength = dataView.getUint16(53);
+  return authData.slice(55, 55 + publicKeyLength);
+}
+
+export async function encryptMasterKey(masterKey, publicKey) {
+  // Generate an ephemeral ECDH key pair
+  const ephemeralKeyPair = await crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" },
+    true,
+    ["deriveBits"]
+  );
+
+  // Import the stored public key
+  const storedPublicKey = await crypto.subtle.importKey(
+    "raw",
+    publicKey,
+    { name: "ECDH", namedCurve: "P-256" },
+    false,
+    []
+  );
+
+  // Perform ECDH to derive shared secret
+  const sharedSecretBits = await crypto.subtle.deriveBits(
+    { name: "ECDH", public: storedPublicKey },
+    ephemeralKeyPair.privateKey,
+    256
+  );
+
+  // Derive AES key from shared secret
+  const aesKey = await crypto.subtle.importKey(
+    "raw",
+    sharedSecretBits,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"]
+  );
+
+  // Encrypt the master key
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encryptedMasterKey = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv },
+    aesKey,
+    masterKey
+  );
+
+  // Export the ephemeral public key
+  const ephemeralPublicKey = await crypto.subtle.exportKey(
+    "raw",
+    ephemeralKeyPair.publicKey
+  );
+
+  return {
+    encryptedMasterKey: new Uint8Array(encryptedMasterKey),
+    iv,
+    ephemeralPublicKey: new Uint8Array(ephemeralPublicKey),
+  };
+}
+
+export async function decryptMasterKey(publicKey, encryptionData) {
+  // Import the stored public key
+  const storedPublicKey = await crypto.subtle.importKey(
+    "raw",
+    publicKey,
+    { name: "ECDH", namedCurve: "P-256" },
+    false,
+    []
+  );
+
+  // Import the ephemeral public key
+  const ephemeralPublicKey = await crypto.subtle.importKey(
+    "raw",
+    encryptionData.ephemeralPublicKey,
+    { name: "ECDH", namedCurve: "P-256" },
+    false,
+    []
+  );
+
+  // Perform ECDH to derive shared secret
+  const sharedSecretBits = await crypto.subtle.deriveBits(
+    { name: "ECDH", public: ephemeralPublicKey },
+    storedPublicKey,
+    256
+  );
+
+  // Derive AES key from shared secret
+  const aesKey = await crypto.subtle.importKey(
+    "raw",
+    sharedSecretBits,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
+
+  // Decrypt the master key
+  const decryptedKey = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: encryptionData.iv },
+    aesKey,
+    encryptionData.encryptedMasterKey
+  );
+
+  return new Uint8Array(decryptedKey);
 }
