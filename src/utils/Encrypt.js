@@ -8,7 +8,7 @@ export async function encryptData(privateKey, masterKeyBase64) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const salt = crypto.getRandomValues(new Uint8Array(16));
 
-  const masterKey = base64ToArrayBuffer(masterKeyBase64);
+  const masterKey = isoBase64URL.fromUTF8String(masterKeyBase64);
 
   const combinedKey = new Uint8Array([...new Uint8Array(masterKey), ...salt]);
 
@@ -43,7 +43,7 @@ export async function decryptData(encryptionData, masterKey) {
   const encryptedPrivateKey = base64ToArrayBuffer(
     encryptionData.encryptedPrivateKey
   );
-  const mk = base64ToArrayBuffer(masterKey);
+  const mk = isoBase64URL.fromUTF8String(masterKey);
 
   const combinedKey = new Uint8Array([
     ...new Uint8Array(mk),
@@ -183,101 +183,23 @@ export function extractPublicKey(attestationObject) {
   return authData.slice(55, 55 + publicKeyLength);
 }
 
-export async function encryptMasterKey(masterKey, publicKey) {
-  // Generate an ephemeral ECDH key pair
-  const ephemeralKeyPair = await crypto.subtle.generateKey(
-    { name: "ECDH", namedCurve: "P-256" },
-    true,
-    ["deriveBits"]
-  );
-
-  // Import the stored public key
-  const storedPublicKey = await crypto.subtle.importKey(
-    "raw",
-    publicKey,
-    { name: "ECDH", namedCurve: "P-256" },
-    false,
-    []
-  );
-
-  // Perform ECDH to derive shared secret
-  const sharedSecretBits = await crypto.subtle.deriveBits(
-    { name: "ECDH", public: storedPublicKey },
-    ephemeralKeyPair.privateKey,
-    256
-  );
-
-  // Derive AES key from shared secret
-  const aesKey = await crypto.subtle.importKey(
-    "raw",
-    sharedSecretBits,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt"]
-  );
-
-  // Encrypt the master key
+export async function encryptMasterKey(masterKey, keyEncryptionKey) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encryptedMasterKey = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv: iv },
-    aesKey,
+    keyEncryptionKey,
     masterKey
   );
-
-  // Export the ephemeral public key
-  const ephemeralPublicKey = await crypto.subtle.exportKey(
-    "raw",
-    ephemeralKeyPair.publicKey
-  );
-
-  return {
-    encryptedMasterKey: new Uint8Array(encryptedMasterKey),
-    iv,
-    ephemeralPublicKey: new Uint8Array(ephemeralPublicKey),
-  };
+  return { encryptedMasterKey: new Uint8Array(encryptedMasterKey), iv };
 }
 
-export async function decryptMasterKey(publicKey, encryptionData) {
-  // Import the stored public key
-  const storedPublicKey = await crypto.subtle.importKey(
-    "raw",
-    publicKey,
-    { name: "ECDH", namedCurve: "P-256" },
-    false,
-    []
-  );
-
-  // Import the ephemeral public key
-  const ephemeralPublicKey = await crypto.subtle.importKey(
-    "raw",
-    encryptionData.ephemeralPublicKey,
-    { name: "ECDH", namedCurve: "P-256" },
-    false,
-    []
-  );
-
-  // Perform ECDH to derive shared secret
-  const sharedSecretBits = await crypto.subtle.deriveBits(
-    { name: "ECDH", public: ephemeralPublicKey },
-    storedPublicKey,
-    256
-  );
-
-  // Derive AES key from shared secret
-  const aesKey = await crypto.subtle.importKey(
-    "raw",
-    sharedSecretBits,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["decrypt"]
-  );
-
-  // Decrypt the master key
+export async function decryptMasterKey(derivedKey, encryptionData) {
+  const iv = base64ToArrayBuffer(encryptionData.keyEncryptionIV);
+  const encryptedKey = base64ToArrayBuffer(encryptionData.encryptedMasterKey);
   const decryptedKey = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: encryptionData.iv },
-    aesKey,
-    encryptionData.encryptedMasterKey
+    { name: "AES-GCM", iv: iv },
+    derivedKey,
+    encryptedKey
   );
-
   return new Uint8Array(decryptedKey);
 }

@@ -25,6 +25,7 @@ const Home = () => {
     fetchHomeData,
     accounts,
     bundles,
+    getSigningKey,
   } = useIndexedDB();
   const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false);
   const [newAccount, setNewAccount] = useState("");
@@ -56,7 +57,7 @@ const Home = () => {
   };
 
   const decryptTest = async () => {
-    const masterKey = sessionStorage.getItem("master");
+    const masterKey = await getSigningKey();
     const decrypted = await decryptData(
       selectedAccount.decryptionData,
       masterKey
