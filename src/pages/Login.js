@@ -2,23 +2,8 @@ import { useState, useEffect } from "react";
 import { useIndexedDB } from "../context/IndexeDBContext";
 
 const Login = (props) => {
-  const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState(false);
   const { register, login, checkIfLoggedIn, isLoggedIn } = useIndexedDB();
-
-  const handlePasswordChange = (e) => {
-    setPassword(e.target.value);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      if (props.firstLogin) {
-        register();
-      } else {
-        login();
-      }
-    }
-  };
 
   useEffect(() => {
     if (!props.firstLogin) {
@@ -52,21 +37,8 @@ const Login = (props) => {
     }
   };
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [password]);
-
   return (
     <div className="login-container">
-      <input
-        className="login-container-inner"
-        type="password"
-        placeholder="password"
-        onChange={handlePasswordChange}
-      />
       <button
         onClick={props.firstLogin ? handleRegister : handleLogin}
         className="login-button"
@@ -80,7 +52,7 @@ const Login = (props) => {
         }}
       >
         {loginError
-          ? "Invalid password"
+          ? "Login failed"
           : "All data is encrypted and stored locally."}
       </p>
     </div>

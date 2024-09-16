@@ -97,6 +97,19 @@ export function IndexedDBProvider({ children }) {
         request.onsuccess = () => {
           dbRef.current = request.result;
           console.log("Database initialized successfully");
+          const transaction = request.result.transaction("auth", "readonly");
+          const store = transaction.objectStore("auth");
+          const countRequest = store.count();
+
+          countRequest.onsuccess = () => {
+            if (countRequest.result === 0) {
+              setFirstLogin(true);
+            }
+          };
+
+          countRequest.onerror = () => {
+            console.error("Error checking auth store count");
+          };
           resolve(true);
         };
 
@@ -205,7 +218,7 @@ export function IndexedDBProvider({ children }) {
       }
 
       const publicKey = getPublicKeyFromPrivateKey(privateKey);
-      const masterKey = sessionStorage.getItem("master");
+      const masterKey = await getSigningKey();
       const encryptionData = await encryptData(privateKey, masterKey);
 
       const newAccount = new Account(
@@ -286,7 +299,6 @@ export function IndexedDBProvider({ children }) {
           }
           setSelectedAccount(selectedAccount);
           onLoadAccount.current = selectedAccount.publicKey;
-          console.log(onLoadAccount.current);
           resolve(true);
         } catch (error) {
           console.error("Error fetching data from IndexedDB:", error);
@@ -300,8 +312,6 @@ export function IndexedDBProvider({ children }) {
   // was having issus with postmessage not waiting for data before trying to handle.
   const checkDataLoaded = async () => {
     return new Promise(async (resolve) => {
-      console.log(onLoadAccount.current);
-
       // wait until dbInitializedRef.current is a promise and resolved
       while (
         !dbInitializedRef.current ||
@@ -320,7 +330,6 @@ export function IndexedDBProvider({ children }) {
       }
       await dataLoadedRef.current;
 
-      console.log(onLoadAccount.current);
       resolve(true);
     });
   };
@@ -328,6 +337,8 @@ export function IndexedDBProvider({ children }) {
   const register = useCallback(async () => {
     const crypto = window.crypto || window.msCrypto;
     try {
+      const id = crypto.getRandomValues(new Uint8Array(32));
+
       const challenge = crypto.getRandomValues(new Uint8Array(32));
       const challengeBuffer = isoBase64URL.fromBuffer(challenge);
       const publicKeyCredentialCreationOptions = {
@@ -339,38 +350,40 @@ export function IndexedDBProvider({ children }) {
         user: {
           name: "BUN",
           displayName: "BUN",
-          id: "id",
+          id: arrayBufferToBase64(id),
         },
-        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+        pubKeyCredParams: [
+          { alg: -8, type: "public-key" }, // Ed25519
+          { alg: -7, type: "public-key" }, // ES256
+          { alg: -257, type: "public-key" }, // RS256
+        ],
         authenticatorSelection: {
           authenticatorAttachment: "platform",
           userVerification: "required",
+          residentKey: "required",
+          requireResidentKey: true,
         },
         timeout: 60000,
       };
       const credential = await startRegistration(
         publicKeyCredentialCreationOptions
       );
-      console.log(credential);
+
       const publicKey = extractPublicKey(credential.response.attestationObject);
 
       const masterKey = crypto.getRandomValues(new Uint8Array(32));
       const keyEncryptionSalt = crypto.getRandomValues(new Uint8Array(16));
-      const keyEncryptionKey = await crypto.subtle.importKey(
-        "raw",
-        publicKey,
-        { name: "ECDH", namedCurve: "P-256" },
-        false,
-        ["deriveKey"]
+      const keyEncryptionKey = await deriveKeyFromPassword(
+        arrayBufferToBase64(credential.rawId),
+        keyEncryptionSalt
       );
-      console.log(keyEncryptionKey);
+
       const { encryptedMasterKey, iv: keyEncryptionIV } =
         await encryptMasterKey(masterKey, keyEncryptionKey);
 
       const authData = {
         topic: "auth",
         auth: {
-          credentialId: arrayBufferToBase64(credential.rawId),
           publicKey: arrayBufferToBase64(publicKey),
           counter: 0,
           passwordVersion: 2,
@@ -388,7 +401,7 @@ export function IndexedDBProvider({ children }) {
       };
 
       await add("auth", authData);
-      setMasterKeyForSession(masterKey);
+
       await storeTemporaryAccess(masterKey);
       setIsLoggedIn(true);
     } catch (error) {
@@ -403,55 +416,100 @@ export function IndexedDBProvider({ children }) {
 
       const crypto = window.crypto || window.msCrypto;
       const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const challengeBuffer = isoBase64URL.fromBuffer(challenge);
 
       const publicKeyCredentialRequestOptions = {
-        challenge,
-        allowCredentials: [
-          {
-            id: base64ToArrayBuffer(storedData.auth.credentialId),
-            type: "public-key",
-            transports: ["internal"],
-          },
-        ],
+        challenge: challengeBuffer,
+        rpId: window.location.hostname,
         userVerification: "required",
         timeout: 60000,
       };
       const assertion = await startAuthentication(
         publicKeyCredentialRequestOptions
       );
+
       if (assertion.response.authenticatorData) {
         // Extract counter from authenticator data
-        const dataView = new DataView(assertion.response.authenticatorData);
+        const dataView = new DataView(
+          isoBase64URL.toBuffer(assertion.response.authenticatorData).buffer
+        );
         const counter = dataView.getUint32(33);
 
-        // Verify counter (prevent replay attacks)
-        if (counter <= storedData.auth.counter) {
-          throw new Error("Potential replay attack detected");
+        // verify counter if not 0 (prevent replay attacks) (some authenticators don't return a counter, in which case will always be 0)
+        if (counter !== 0) {
+          if (counter <= storedData.auth.counter) {
+            throw new Error("Potential replay attack detected");
+          }
+          storedData.auth.counter = counter;
+          await add("auth", storedData);
         }
-
-        // Update counter
-        storedData.auth.counter = counter;
-        await add("auth", storedData);
       }
 
-      // Decrypt master key
-      const publicKey = base64ToArrayBuffer(storedData.auth.publicKey);
-      const keyEncryptionKey = await crypto.subtle.importKey(
-        "raw",
-        publicKey,
-        { name: "ECDH", namedCurve: "P-256" },
-        false,
-        ["deriveKey"]
+      const keyEncryptionKey = await deriveKeyFromPassword(
+        arrayBufferToBase64(assertion.rawId),
+        base64ToArrayBuffer(storedData.encryption.keyEncryptionSalt)
       );
+
       const masterKey = await decryptMasterKey(
         keyEncryptionKey,
         storedData.encryption
       );
 
-      setMasterKeyForSession(masterKey);
       await updateLastLogin();
       await storeTemporaryAccess(masterKey);
       setIsLoggedIn(true);
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
+    }
+  }, [get]);
+
+  const getSigningKey = useCallback(async () => {
+    try {
+      const storedData = await get("auth", "auth");
+
+      const crypto = window.crypto || window.msCrypto;
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const challengeBuffer = isoBase64URL.fromBuffer(challenge);
+
+      const publicKeyCredentialRequestOptions = {
+        challenge: challengeBuffer,
+        rpId: window.location.hostname,
+        userVerification: "required",
+        timeout: 60000,
+      };
+      const assertion = await startAuthentication(
+        publicKeyCredentialRequestOptions
+      );
+
+      if (assertion.response.authenticatorData) {
+        // Extract counter from authenticator data
+        const dataView = new DataView(
+          isoBase64URL.toBuffer(assertion.response.authenticatorData).buffer
+        );
+        const counter = dataView.getUint32(33);
+
+        // verify counter if not 0 (prevent replay attacks) (some authenticators don't return a counter, in which case will always be 0)
+        if (counter !== 0) {
+          if (counter <= storedData.auth.counter) {
+            throw new Error("Potential replay attack detected");
+          }
+          storedData.auth.counter = counter;
+          await add("auth", storedData);
+        }
+      }
+
+      const keyEncryptionKey = await deriveKeyFromPassword(
+        arrayBufferToBase64(assertion.rawId),
+        base64ToArrayBuffer(storedData.encryption.keyEncryptionSalt)
+      );
+
+      const masterKey = await decryptMasterKey(
+        keyEncryptionKey,
+        storedData.encryption
+      );
+
+      return masterKey;
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
@@ -468,47 +526,27 @@ export function IndexedDBProvider({ children }) {
   }, []);
 
   const checkIfLoggedIn = useCallback(async () => {
-    const storedMasterKey = await getStoredMasterKey();
-    if (storedMasterKey) {
-      setMasterKeyForSession(storedMasterKey);
+    const logged = await getIsLoggedIn();
+    if (logged) {
       setIsLoggedIn(true);
     }
   }, []);
 
   const storeTemporaryAccess = useCallback(async (masterKey) => {
-    const tempKey = await generateTemporaryKey();
-    const encryptedData = await encryptData(
-      masterKey,
-      arrayBufferToBase64(tempKey)
-    );
     const expirationTime = Date.now() + 30 * 60 * 1000;
 
-    localStorage.setItem("encryptedMasterKey", JSON.stringify(encryptedData));
-    localStorage.setItem("masterKeyExpiration", expirationTime.toString());
-    localStorage.setItem("tempKey", arrayBufferToBase64(tempKey));
+    localStorage.setItem("loginExpiration", expirationTime.toString());
   }, []);
 
-  const getStoredMasterKey = useCallback(async () => {
+  const getIsLoggedIn = useCallback(async () => {
     const expirationTime = parseInt(
-      localStorage.getItem("masterKeyExpiration") || "0",
+      localStorage.getItem("loginExpiration") || "0",
       10
     );
     if (Date.now() > expirationTime) {
-      localStorage.removeItem("encryptedMasterKey");
-      localStorage.removeItem("masterKeyExpiration");
-      localStorage.removeItem("tempKey");
-      return null;
+      return false;
     }
-    const encryptedData = JSON.parse(
-      localStorage.getItem("encryptedMasterKey") || "null"
-    );
-    const tempKey = localStorage.getItem("tempKey");
-
-    if (!encryptedData || !tempKey) {
-      return null;
-    }
-
-    return await decryptTempKey(encryptedData, tempKey);
+    return true;
   }, []);
 
   const setMasterKeyForSession = useCallback((masterKey) => {
@@ -553,10 +591,9 @@ export function IndexedDBProvider({ children }) {
     isLoggedIn,
     setIsLoggedIn,
     firstLogin,
-    setMasterKeyForSession,
-    getStoredMasterKey,
     checkDataLoaded,
     onLoadAccount,
+    getSigningKey,
   };
 
   return (
