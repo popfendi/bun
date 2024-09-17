@@ -13,14 +13,10 @@ import {
 import {
   encryptData,
   decryptData,
-  hashPassword,
   extractPublicKey,
-  verifyPassword,
   deriveKeyFromPassword,
   encryptMasterKey,
   decryptMasterKey,
-  generateTemporaryKey,
-  decryptTempKey,
   arrayBufferToBase64,
   base64ToArrayBuffer,
 } from "../utils/Encrypt";
@@ -48,12 +44,13 @@ export class Account {
   }
 }
 
-export class Bundle {
-  constructor(bundleID, signerAccount, totalValue, status, metadata) {
-    this.bundleID = bundleID;
+export class Tx {
+  constructor(id, signerAccount, value, status, type, metadata) {
+    this.id = id;
     this.signerAccount = signerAccount;
-    this.totalValue = totalValue;
+    this.value = value;
     this.status = status;
+    this.type = type;
     this.metadata = metadata;
   }
 }
@@ -73,7 +70,7 @@ export function IndexedDBProvider({ children }) {
   const onLoadAccount = useRef(null);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [accounts, setAccounts] = useState([]);
-  const [bundles, setBundles] = useState([]);
+  const [txs, setTxs] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [firstLogin, setFirstLogin] = useState(false);
 
@@ -87,7 +84,7 @@ export function IndexedDBProvider({ children }) {
           if (!db.objectStoreNames.contains("auth")) {
             console.log("creating stores");
             db.createObjectStore("auth", { keyPath: "topic" });
-            db.createObjectStore("bundles", { keyPath: "id" });
+            db.createObjectStore("txs", { keyPath: "id" });
             db.createObjectStore("accounts", { keyPath: "publicKey" });
             db.createObjectStore("domains", { keyPath: "domain" });
             setFirstLogin(true);
@@ -242,9 +239,17 @@ export function IndexedDBProvider({ children }) {
     return getAll("accounts");
   }, [getAll]);
 
-  const getBundles = useCallback(async () => {
-    return getAll("bundles");
+  const getTxs = useCallback(async () => {
+    return getAll("txs");
   }, [getAll]);
+
+  const getTxsForAccount = useCallback(
+    async (accountPublicKey) => {
+      const allTxs = await getAll("txs");
+      return allTxs.filter((tx) => tx.signerAccount === accountPublicKey);
+    },
+    [getAll]
+  );
 
   const setSelectedAccountAndUpdateStorage = useCallback(
     async (publicKey) => {
@@ -284,9 +289,7 @@ export function IndexedDBProvider({ children }) {
       dataLoadedRef.current = new Promise(async (resolve) => {
         try {
           const accounts = await getAccounts();
-          const bundles = await getBundles();
           setAccounts(accounts);
-          setBundles(bundles);
 
           const selectedPublicKey = localStorage.getItem("selectedAccount");
           let selectedAccount = null;
@@ -299,6 +302,8 @@ export function IndexedDBProvider({ children }) {
           }
           setSelectedAccount(selectedAccount);
           onLoadAccount.current = selectedAccount.publicKey;
+          const txs = await getTxsForAccount(selectedAccount.publicKey);
+          setTxs(txs);
           resolve(true);
         } catch (error) {
           console.error("Error fetching data from IndexedDB:", error);
@@ -307,7 +312,7 @@ export function IndexedDBProvider({ children }) {
       });
     }
     return dataLoadedRef.current;
-  }, [getAccounts, getBundles]);
+  }, [getAccounts, getTxs]);
 
   // was having issus with postmessage not waiting for data before trying to handle.
   const checkDataLoaded = async () => {
@@ -577,9 +582,10 @@ export function IndexedDBProvider({ children }) {
     deleteDomain,
     addAccount,
     getAccounts,
-    getBundles,
+    getTxs,
+    getTxsForAccount,
     accounts,
-    bundles,
+    txs,
     setSelectedAccountAndUpdateStorage,
     decryptPrivateKey,
     selectedAccount,

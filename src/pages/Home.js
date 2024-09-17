@@ -2,7 +2,7 @@ import WalletSelection from "../components/WalletSelection";
 import BalanceDisplay from "../components/BalanceDisplay";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGear, faPlus } from "@fortawesome/free-solid-svg-icons";
-import BundleHistory from "../components/BundleHistory";
+import TxHistory from "../components/TxHistory";
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
 import {
@@ -17,14 +17,14 @@ Modal.setAppElement("#root");
 const Home = () => {
   const {
     getAccounts,
-    getBundles,
+    getTxs,
     addAccount,
     selectedAccount,
     setSelectedAccount,
     setSelectedAccountAndUpdateStorage,
     fetchHomeData,
     accounts,
-    bundles,
+    txs,
     getSigningKey,
   } = useIndexedDB();
   const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false);
@@ -32,7 +32,7 @@ const Home = () => {
 
   useEffect(() => {
     fetchHomeData();
-  }, [getAccounts, getBundles, setSelectedAccount]);
+  }, [getAccounts, getTxs, setSelectedAccount]);
 
   const openAddAccountModal = () => {
     setIsAddAccountModalOpen(true);
@@ -77,7 +77,7 @@ const Home = () => {
         <button onClick={decryptTest}>
           <FontAwesomeIcon icon={faGear} />
         </button>
-        <p className="bundle-history-title">Bundle History</p>
+        <p className="bundle-history-title">History</p>
         <button
           onClick={openAddAccountModal}
           className={accounts.length === 0 ? "pulse-green" : ""}
@@ -86,7 +86,7 @@ const Home = () => {
         </button>
       </div>
       <hr className="home-divider" />
-      <BundleHistory bundles={bundles} />
+      <TxHistory txs={txs} />
       <Modal
         isOpen={isAddAccountModalOpen}
         onRequestClose={closeAddAccountModal}

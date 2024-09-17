@@ -95,6 +95,19 @@ function App() {
       );
     };
 
+    const handleSignAndSendTx = (params, event, id) => {
+      // check if origin is connected
+      // get tx from params
+      // parse tx, prompt user to sign
+      // sign tx
+      // send tx  and wait on status
+      // return tx id to origin
+      setPendingRequests((prevRequests) => [
+        ...prevRequests,
+        { method: "signAndSendTransaction", params, event, requestId: id },
+      ]);
+    };
+
     const handleSignAndSendBundle = (params, event, id) => {
       // check if origin is connected
       // get bundle from params
@@ -112,12 +125,14 @@ function App() {
     on("connect", handleConnect);
     on("disconnect", handleDisconnect);
     on("signAndSendBundle", handleSignAndSendBundle);
+    on("signAndSendTransaction", handleSignAndSendTx);
 
     return () => {
       off("PopupLoaded", handlePopupLoaded);
       off("connect", handleConnect);
       off("disconnect", handleDisconnect);
       off("signAndSendBundle", handleSignAndSendBundle);
+      off("signAndSendTransaction", handleSignAndSendTx);
     };
   }, [on, off, sendMessage]);
 
@@ -151,6 +166,18 @@ function App() {
           request.event.source
         );
         break;
+      case "signAndSendTransaction":
+        sendMessage(
+          {
+            event: "signAndSendTransactionResponse",
+            data: {},
+            requestId: request.requestId,
+            status: "success",
+          },
+          request.event.origin,
+          request.event.source
+        );
+        break;
     }
     setPendingRequests((prevRequests) => prevRequests.slice(1));
   };
@@ -176,6 +203,20 @@ function App() {
         sendMessage(
           {
             event: "signAndSendBundleResponse",
+            data: {
+              error: { code: 4001, message: "User rejected the request." },
+            },
+            requestId: request.requestId,
+            status: "rejected",
+          },
+          request.event.origin,
+          request.event.source
+        );
+        break;
+      case "signAndSendTransaction":
+        sendMessage(
+          {
+            event: "signAndSendTransactionResponse",
             data: {
               error: { code: 4001, message: "User rejected the request." },
             },

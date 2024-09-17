@@ -6,7 +6,7 @@ import reportWebVitals from "./reportWebVitals";
 import * as buffer from "buffer";
 import { MessageProvider } from "./context/MessageContext";
 import { IndexedDBProvider } from "./context/IndexeDBContext";
-
+import { SolanaProvider } from "./context/SolanaContext";
 window.Buffer = buffer.Buffer;
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
@@ -14,7 +14,9 @@ root.render(
   <React.StrictMode>
     <IndexedDBProvider>
       <MessageProvider>
-        <App />
+        <SolanaProvider>
+          <App />
+        </SolanaProvider>
       </MessageProvider>
     </IndexedDBProvider>
   </React.StrictMode>

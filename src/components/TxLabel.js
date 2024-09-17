@@ -2,15 +2,18 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faLayerGroup,
   faHourglassHalf,
+  faDiamond,
 } from "@fortawesome/free-solid-svg-icons";
 
-const BundleLabel = (props) => {
+const TxLabel = (props) => {
   return (
     <div className="bundle-label-container">
       {props.status === "pending" ? (
         <FontAwesomeIcon icon={faHourglassHalf} />
-      ) : (
+      ) : props.type === "bundle" ? (
         <FontAwesomeIcon icon={faLayerGroup} />
+      ) : (
+        <FontAwesomeIcon icon={faDiamond} />
       )}
       <div className="bundle-label-text-container">
         <div className="bundle-label-text-left">
@@ -32,4 +35,4 @@ const BundleLabel = (props) => {
   );
 };
 
-export default BundleLabel;
+export default TxLabel;
