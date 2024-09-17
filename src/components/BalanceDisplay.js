@@ -12,7 +12,6 @@ const BalanceDisplay = (props) => {
         setLoading(true);
         try {
           const b = await getUserBalance(props.selectedAccount.publicKey);
-          console.log(b);
           setBalance(b);
         } catch (error) {
           console.error(error);

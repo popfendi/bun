@@ -103,7 +103,6 @@ export async function getBalanceDifference(connection, transaction, signer) {
 }
 
 export async function getBalance(connection, account) {
-  console.log("getBalance");
   try {
     const publicKey = new PublicKey(account);
     const balance = await connection.getBalance(publicKey);
