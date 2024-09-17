@@ -6,6 +6,29 @@ import Home from "./pages/Home";
 import RequestPage from "./pages/RequestPage";
 import { useIndexedDB } from "./context/IndexeDBContext";
 
+const testSendTransactionRequest = {
+  method: "signAndSendTransaction",
+  params: {
+    message:
+      "87PYurGuVw3zGvqZ2EEfbcF3nW8gSjYuFjycBp6h1sH2wvrv1oCpu9GLTbCNXJAT395QNdsxafJPp7H2o1RF1eYhst4vexYtpdnnu3kapTYxNAYYREjwEy4SmNvU666zSc6NXCrcTF3Yu7YSDk8HPsR6U3FZpLq2XGqbe3H8UPhM2xc4x8XTbF2xHYSZQeAoHotQuJcTmzBR",
+  },
+  event: {
+    origin: "https://example.com",
+    source: window,
+  },
+  requestId: "uniqueRequestId",
+};
+
+const testConnectRequest = {
+  method: "connect",
+  params: {},
+  event: {
+    origin: "https://example.com",
+    source: window,
+  },
+  requestId: "uniqueConnectRequestId",
+};
+
 function App() {
   const [pendingRequests, setPendingRequests] = useState([]);
   const {
@@ -32,6 +55,17 @@ function App() {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPendingRequests((prevRequests) => [
+        ...prevRequests,
+        testSendTransactionRequest,
+      ]);
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -95,26 +129,60 @@ function App() {
       );
     };
 
-    const handleSignAndSendTx = (params, event, id) => {
+    const handleSignAndSendTx = async (params, event, id) => {
       // check if origin is connected
       // get tx from params
       // parse tx, prompt user to sign
       // sign tx
       // send tx  and wait on status
       // return tx id to origin
+      const domain = await readDomain(event.origin);
+      if (!domain) {
+        sendMessage(
+          {
+            method: "signAndSendTransaction",
+            data: {
+              error: { code: 4100, message: "Unauthorized domain" },
+            },
+            requestId: id,
+            status: "rejected",
+          },
+          event.origin,
+          event.source
+        );
+        return;
+      }
+
       setPendingRequests((prevRequests) => [
         ...prevRequests,
         { method: "signAndSendTransaction", params, event, requestId: id },
       ]);
     };
 
-    const handleSignAndSendBundle = (params, event, id) => {
+    const handleSignAndSendBundle = async (params, event, id) => {
       // check if origin is connected
       // get bundle from params
       // parse bundle, prompt user to sign
       // sign bundle
       // send bundle to jito and wait on status
       // return bundle id to origin
+      const domain = await readDomain(event.origin);
+      if (!domain) {
+        sendMessage(
+          {
+            method: "signAndSendBundle",
+            data: {
+              error: { code: 4100, message: "Unauthorized domain" },
+            },
+            requestId: id,
+            status: "rejected",
+          },
+          event.origin,
+          event.source
+        );
+        return;
+      }
+
       setPendingRequests((prevRequests) => [
         ...prevRequests,
         { method: "signAndSendBundle", params, event, requestId: id },
@@ -157,7 +225,7 @@ function App() {
       case "signAndSendBundle":
         sendMessage(
           {
-            event: "signAndSendBundleResponse",
+            event: "signAndSendBundle",
             data: {},
             requestId: request.requestId,
             status: "success",
@@ -169,7 +237,7 @@ function App() {
       case "signAndSendTransaction":
         sendMessage(
           {
-            event: "signAndSendTransactionResponse",
+            event: "signAndSendTransaction",
             data: {},
             requestId: request.requestId,
             status: "success",
@@ -202,7 +270,7 @@ function App() {
       case "signAndSendBundle":
         sendMessage(
           {
-            event: "signAndSendBundleResponse",
+            event: "signAndSendBundle",
             data: {
               error: { code: 4001, message: "User rejected the request." },
             },
@@ -216,7 +284,7 @@ function App() {
       case "signAndSendTransaction":
         sendMessage(
           {
-            event: "signAndSendTransactionResponse",
+            event: "signAndSendTransaction",
             data: {
               error: { code: 4001, message: "User rejected the request." },
             },
@@ -240,6 +308,7 @@ function App() {
             requestDetails={pendingRequests[0]}
             onSign={handleSign}
             onReject={handleReject}
+            selectedAccount={selectedAccount}
           />
         ) : (
           <Home

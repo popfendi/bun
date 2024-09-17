@@ -3,7 +3,7 @@ import ConnectDetails from "../components/ConnectDetails";
 import BundleDetails from "../components/BundleDetails";
 import TransactionDetails from "../components/TransactionDetails";
 
-const RequestPage = ({ requestDetails, onSign, onReject }) => {
+const RequestPage = ({ requestDetails, onSign, onReject, selectedAccount }) => {
   const handleTitle = () => {
     switch (requestDetails.method) {
       case "connect":
@@ -22,7 +22,12 @@ const RequestPage = ({ requestDetails, onSign, onReject }) => {
       case "signAndSendBundle":
         return <BundleDetails requestDetails={requestDetails} />;
       case "signAndSendTransaction":
-        return <TransactionDetails requestDetails={requestDetails} />;
+        return (
+          <TransactionDetails
+            requestDetails={requestDetails}
+            selectedAccount={selectedAccount}
+          />
+        );
     }
   };
 

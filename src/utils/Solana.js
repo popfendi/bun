@@ -4,6 +4,8 @@ import {
   Transaction,
   SystemProgram,
   PublicKey,
+  VersionedTransaction,
+  TransactionMessage,
 } from "@solana/web3.js";
 import bs58 from "bs58";
 
@@ -61,18 +63,45 @@ export function parseTransferSolInstruction(instruction) {
   };
 }
 
-export async function getActualFee(connection, transaction) {
+export async function getActualFee(
+  connection,
+  transaction,
+  b58Tx,
+  maxRetries = 5
+) {
   const message = transaction.compileMessage();
-  const fee = await connection.getFeeForMessage(message);
-
-  return fee.value;
+  let fee = await connection.getFeeForMessage(message);
+  if (fee.value) {
+    return fee;
+  } else {
+    let retries = 0;
+    let success = false;
+    while (retries < maxRetries && !success) {
+      try {
+        const { blockhash } = await connection.getLatestBlockhash("finalized");
+        const newTransaction = updateMessageBlockhash(b58Tx, blockhash);
+        fee = await connection.getFeeForMessage(
+          newTransaction.compileMessage()
+        );
+        if (fee.value) {
+          success = true;
+        }
+      } catch (error) {
+        retries += 1;
+        if (retries >= maxRetries) {
+          throw error;
+        }
+      }
+    }
+  }
+  return fee;
 }
 
 export async function simulateTransaction(connection, transaction, signer) {
   const simulation = await connection.simulateTransaction(
     transaction,
-    [signer],
-    [signer.publicKey]
+    undefined,
+    [signer]
   );
 
   if (simulation.value.err) {
@@ -82,24 +111,6 @@ export async function simulateTransaction(connection, transaction, signer) {
   }
 
   return simulation.value;
-}
-
-export async function getBalanceDifference(connection, transaction, signer) {
-  try {
-    const initialBalance = await connection.getBalance(signer);
-    const simulation = await simulateTransaction(
-      connection,
-      transaction,
-      signer
-    );
-
-    const finalBalance = simulation.accounts[0].lamports;
-    const balanceDifference = finalBalance - initialBalance;
-
-    return balanceDifference;
-  } catch (error) {
-    throw new Error(`Failed transaction: ${error.message}`);
-  }
 }
 
 export async function getBalance(connection, account) {
@@ -116,4 +127,66 @@ export async function getBalance(connection, account) {
   } catch (error) {
     throw new Error(`Failed balance fetch: ${error.message}`);
   }
+}
+
+async function getBalanceLamports(connection, account) {
+  const balance = await connection.getBalance(account);
+  return balance;
+}
+
+export function updateMessageBlockhash(b58String, newBlockhash) {
+  const decoded = bs58.decode(b58String);
+  const message = Message.from(decoded);
+
+  message.recentBlockhash = newBlockhash;
+
+  const newTx = Transaction.populate(message);
+
+  return newTx;
+}
+
+export async function getBalanceDiff(
+  connection,
+  transaction,
+  b58Tx,
+  signer,
+  maxRetries = 5
+) {
+  const publicKey = new PublicKey(signer);
+  const beforeBalance = await getBalanceLamports(connection, publicKey);
+  let simulation;
+  try {
+    simulation = await simulateTransaction(connection, transaction, publicKey);
+  } catch (error) {
+    if (error.message.toLowerCase().includes("blockhash")) {
+      let retries = 0;
+      let success = false;
+
+      while (retries < maxRetries && !success) {
+        try {
+          const { blockhash } =
+            await connection.getLatestBlockhash("finalized");
+          const newTransaction = updateMessageBlockhash(b58Tx, blockhash);
+          simulation = await simulateTransaction(
+            connection,
+            newTransaction,
+            publicKey
+          );
+          success = true;
+        } catch (retryError) {
+          retries += 1;
+          if (retries >= maxRetries) {
+            throw retryError;
+          }
+        }
+      }
+    } else {
+      throw error;
+    }
+  }
+  const afterBalance = simulation.accounts[0].lamports;
+  console.log(beforeBalance);
+  console.log(afterBalance);
+  const balanceDiff = afterBalance - beforeBalance;
+  return balanceDiff;
 }

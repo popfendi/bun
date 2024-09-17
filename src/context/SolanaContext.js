@@ -6,7 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { Connection } from "@solana/web3.js";
-import { getActualFee, getBalance } from "../utils/Solana";
+import { getActualFee, getBalance, getBalanceDiff } from "../utils/Solana";
 import { conf } from "../config";
 const SolanaContext = createContext();
 
@@ -59,17 +59,34 @@ export const SolanaProvider = ({ children }) => {
     }
   };
 
-  const getFeeForMessage = async (message) => {
-    return rateLimit(getActualFee, connection, message);
+  const getFeeForMessage = async (message, b58Tx) => {
+    return rateLimit(getActualFee, connection, message, b58Tx);
   };
 
   const getUserBalance = async (publicKey) => {
     return rateLimit(getBalance, connection, publicKey);
   };
 
+  const getRecentBlockhash = async () => {
+    return rateLimit(async (connection) => {
+      const { blockhash } = await connection.getLatestBlockhash("finalized");
+      return blockhash;
+    }, connection);
+  };
+
+  const getBalanceDifference = async (transaction, b58Tx, signer) => {
+    return rateLimit(getBalanceDiff, connection, transaction, b58Tx, signer);
+  };
+
   return (
     <SolanaContext.Provider
-      value={{ connection, getFeeForMessage, getUserBalance }}
+      value={{
+        connection,
+        getFeeForMessage,
+        getUserBalance,
+        getRecentBlockhash,
+        getBalanceDifference,
+      }}
     >
       {children}
     </SolanaContext.Provider>
