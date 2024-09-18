@@ -1,6 +1,11 @@
 import { updateMessageBlockhash, LAMPORTS_PER_SOL } from "../utils/Solana";
 import { useEffect, useState } from "react";
 import { useSolana } from "../context/SolanaContext";
+import InstructionDetails from "./InstructionDetails";
+import sol from "../images/sol.svg";
+import Modal from "react-modal";
+
+Modal.setAppElement("#root");
 
 const TransactionDetails = ({ requestDetails, selectedAccount }) => {
   const { getFeeForMessage, getRecentBlockhash, getBalanceDifference } =
@@ -8,42 +13,64 @@ const TransactionDetails = ({ requestDetails, selectedAccount }) => {
   const [instructions, setInstructions] = useState([]);
   const [fee, setFee] = useState(0);
   const [balanceDiff, setBalanceDiff] = useState(0);
-  const [simLoading, setSimLoading] = useState(false);
+  const [simLoading, setSimLoading] = useState(true);
   const [simSuccess, setSimSuccess] = useState(false);
+  const [simError, setSimError] = useState("");
+  const [instructionsModalOpen, setInstructionsModalOpen] = useState(false);
+
+  const openInstructionsModal = () => {
+    setInstructionsModalOpen(true);
+  };
+
+  const closeInstructionsModal = () => {
+    setInstructionsModalOpen(false);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
-      const blockhash = await getRecentBlockhash();
-      const transaction = updateMessageBlockhash(
-        requestDetails.params.message,
-        blockhash
-      );
+      try {
+        setSimLoading(true);
 
-      const fee = await getFeeForMessage(
-        transaction,
-        requestDetails.params.message
-      );
-      console.log(fee);
-      const balanceDiff = await getBalanceDifference(
-        transaction,
-        requestDetails.params.message,
-        selectedAccount.publicKey
-      );
-      setBalanceDiff(balanceDiff);
-      setFee(fee.value);
-      setInstructions(transaction.instructions);
+        const blockhash = await getRecentBlockhash();
+        const transaction = updateMessageBlockhash(
+          requestDetails.params.message,
+          blockhash
+        );
+
+        setInstructions(transaction.instructions);
+
+        const fee = await getFeeForMessage(
+          transaction,
+          requestDetails.params.message
+        );
+
+        const balanceDiff = await getBalanceDifference(
+          transaction,
+          requestDetails.params.message,
+          selectedAccount.publicKey
+        );
+
+        setBalanceDiff(balanceDiff);
+        setFee(fee.value);
+
+        setSimSuccess(true);
+      } catch (error) {
+        setSimSuccess(false);
+        setSimError(error.message);
+        console.error("Error:", error);
+      } finally {
+        setSimLoading(false);
+      }
     };
-    setSimLoading(true);
-    try {
-      fetchData();
-      setSimSuccess(true);
-    } catch (error) {
-      console.error(error);
-      setSimSuccess(false);
-    } finally {
-      setSimLoading(false);
-    }
-  }, [requestDetails]);
+
+    fetchData();
+  }, [
+    requestDetails,
+    getRecentBlockhash,
+    getFeeForMessage,
+    getBalanceDifference,
+    selectedAccount.publicKey,
+  ]);
 
   const handleDiffAndFee = () => {
     if (balanceDiff < 0) {
@@ -57,10 +84,46 @@ const TransactionDetails = ({ requestDetails, selectedAccount }) => {
 
   return (
     <>
-      <p className="request-details-text">
-        TX amount: {handleDiffAndFee()}
-        fee: {Number(fee) / LAMPORTS_PER_SOL}
-      </p>
+      <div
+        className="transaction-details-container"
+        onClick={openInstructionsModal}
+      >
+        <p className="details-click-text">
+          {simLoading ? "Simulating..." : "click for details"}
+        </p>
+        {simError && (
+          <p className="error-text">
+            simulation error, transaction will likely fail
+          </p>
+        )}
+        <div className="transaction-details-segment">
+          <img src={sol} alt="sol" width={30} />
+          <p
+            className={
+              handleDiffAndFee() < 0
+                ? "status-colour-failed"
+                : "status-colour-landed"
+            }
+          >
+            {handleDiffAndFee()} SOL
+          </p>
+        </div>
+        <div className="transaction-details-segment fee-details">
+          <p>Network Fee: -{Number(fee) / LAMPORTS_PER_SOL} SOL</p>
+        </div>
+      </div>
+      <Modal
+        isOpen={instructionsModalOpen}
+        onRequestClose={closeInstructionsModal}
+        contentLabel="instructions modal"
+        className="modal"
+        overlayClassName="modal-overlay"
+      >
+        <p className="instructions-title">instructions</p>
+        {instructions.map((instruction, index) => (
+          <InstructionDetails key={index} instruction={instruction} />
+        ))}
+      </Modal>
     </>
   );
 };
