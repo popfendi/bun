@@ -32,7 +32,7 @@ const Home = () => {
 
   useEffect(() => {
     fetchHomeData();
-  }, [getAccounts, getTxs, setSelectedAccount]);
+  }, [setSelectedAccount]);
 
   const openAddAccountModal = () => {
     setIsAddAccountModalOpen(true);

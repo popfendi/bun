@@ -4,8 +4,6 @@ import {
   Transaction,
   SystemProgram,
   PublicKey,
-  VersionedTransaction,
-  TransactionMessage,
 } from "@solana/web3.js";
 import bs58 from "bs58";
 
@@ -100,7 +98,7 @@ export async function getActualFee(
 export async function simulateTransaction(connection, transaction, signer) {
   const simulation = await connection.simulateTransaction(
     transaction,
-    undefined,
+    undefined, // solana-web3.js is broken, this is the only way to sim legacyTX without signing
     [signer]
   );
 
@@ -185,8 +183,20 @@ export async function getBalanceDiff(
     }
   }
   const afterBalance = simulation.accounts[0].lamports;
-  console.log(beforeBalance);
-  console.log(afterBalance);
   const balanceDiff = afterBalance - beforeBalance;
   return balanceDiff;
+}
+
+export async function signAndSendTransaction(connection, b58Tx, pk) {
+  const signer = Keypair.fromSecretKey(bs58.decode(pk));
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  const transaction = updateMessageBlockhash(b58Tx, blockhash);
+  const signature = await connection.sendTransaction(transaction, [signer]);
+  return signature;
+}
+
+export async function confirmTransaction(connection, signature) {
+  const confirmation = await connection.confirmTransaction(signature);
+  const status = confirmation.value.err ? "failed" : "confirmed";
+  return status;
 }

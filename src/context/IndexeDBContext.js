@@ -45,10 +45,9 @@ export class Account {
 }
 
 export class Tx {
-  constructor(id, signerAccount, value, status, type, metadata) {
+  constructor(id, signerAccount, status, type, metadata) {
     this.id = id;
     this.signerAccount = signerAccount;
-    this.value = value;
     this.status = status;
     this.type = type;
     this.metadata = metadata;
@@ -118,6 +117,10 @@ export function IndexedDBProvider({ children }) {
     }
     return dbInitializedRef.current;
   }, []);
+
+  useEffect(() => {
+    console.log("txs state changed:", txs);
+  }, [txs]);
 
   useEffect(() => {
     initDB();
@@ -251,6 +254,36 @@ export function IndexedDBProvider({ children }) {
     [getAll]
   );
 
+  const addTx = useCallback(
+    async (tx) => {
+      await add("txs", tx);
+      setTxs((prevTxs) => [...prevTxs, tx]); // Always use the updater function to avoid stale state
+    },
+    [add]
+  );
+
+  const updateTx = useCallback(
+    async (signature, status) => {
+      setTxs((prevTxs) => {
+        console.log(prevTxs); // This will always print the latest state
+        console.log(signature);
+
+        const txToUpdate = prevTxs.find((tx) => tx.id === signature);
+        if (txToUpdate) {
+          console.log("txToUpdate");
+          console.log(txToUpdate);
+          const updatedTx = { ...txToUpdate, status };
+          console.log("updatedTx");
+          console.log(updatedTx);
+          update("txs", updatedTx);
+          return prevTxs.map((tx) => (tx.id === signature ? updatedTx : tx));
+        }
+        return prevTxs; // No changes if no matching tx found
+      });
+    },
+    [update] // Include 'update' but not 'txs' because 'prevTxs' will handle current state
+  );
+
   const setSelectedAccountAndUpdateStorage = useCallback(
     async (publicKey) => {
       const account = await get("accounts", publicKey);
@@ -339,6 +372,8 @@ export function IndexedDBProvider({ children }) {
     });
   };
 
+  /* would rather use this solution: https://blog.millerti.me/2023/01/22/encrypting-data-in-the-browser-using-webauthn/
+  still waiting for browser support */
   const register = useCallback(async () => {
     const crypto = window.crypto || window.msCrypto;
     try {
@@ -600,6 +635,8 @@ export function IndexedDBProvider({ children }) {
     checkDataLoaded,
     onLoadAccount,
     getSigningKey,
+    addTx,
+    updateTx,
   };
 
   return (

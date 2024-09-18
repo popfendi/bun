@@ -6,7 +6,13 @@ import React, {
   useRef,
 } from "react";
 import { Connection } from "@solana/web3.js";
-import { getActualFee, getBalance, getBalanceDiff } from "../utils/Solana";
+import {
+  getActualFee,
+  getBalance,
+  getBalanceDiff,
+  signAndSendTransaction,
+  confirmTransaction,
+} from "../utils/Solana";
 import { conf } from "../config";
 const SolanaContext = createContext();
 
@@ -54,6 +60,8 @@ export const SolanaProvider = ({ children }) => {
     try {
       const result = await fn(...args);
       return result;
+    } catch (e) {
+      throw e;
     } finally {
       concurrentConnectionsRef.current -= 1;
     }
@@ -78,6 +86,14 @@ export const SolanaProvider = ({ children }) => {
     return rateLimit(getBalanceDiff, connection, transaction, b58Tx, signer);
   };
 
+  const sendTransaction = async (b58Tx, pk) => {
+    return rateLimit(signAndSendTransaction, connection, b58Tx, pk);
+  };
+
+  const confirmTransactionBySignature = async (signature) => {
+    return rateLimit(confirmTransaction, connection, signature);
+  };
+
   return (
     <SolanaContext.Provider
       value={{
@@ -86,6 +102,8 @@ export const SolanaProvider = ({ children }) => {
         getUserBalance,
         getRecentBlockhash,
         getBalanceDifference,
+        sendTransaction,
+        confirmTransactionBySignature,
       }}
     >
       {children}

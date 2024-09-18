@@ -1,16 +1,18 @@
 import "./App.css";
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, useCallback } from "react";
 import { MessageContext } from "./context/MessageContext";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
 import RequestPage from "./pages/RequestPage";
 import { useIndexedDB } from "./context/IndexeDBContext";
+import { useSolana } from "./context/SolanaContext";
+import { decryptData } from "./utils/Encrypt";
 
 const testSendTransactionRequest = {
   method: "signAndSendTransaction",
   params: {
     message:
-      "87PYurGuVw3zGvqZ2EEfbcF3nW8gSjYuFjycBp6h1sH2wvrv1oCpu9GLTbCNXJAT395QNdsxafJPp7H2o1RF1eYhst4vexYtpdnnu3kapTYxNAYYREjwEy4SmNvU666zSc6NXCrcTF3Yu7YSDk8HPsR6U3FZpLq2XGqbe3H8UPhM2xc4x8XTbF2xHYSZQeAoHotQuJcTmzBR",
+      "87PYurGuVw3zGvqZ2EEfbcF3nW8gSjYuFjycBp6h1sH2wvrv1oCpu9GLTbCNXJAT395QNdsxafJPp7H2o1RF1eYhst4vexYtpdnnu3kapTYxNAYYREjwEy4SmNvU666zSc6NXCreFb3EnVCvGTRQKHaPknMTmBprp3WS65WnL9Fycgs3SPxSWgMNDHjoT5CkTYh9AuKR7c4w",
   },
   event: {
     origin: "https://example.com",
@@ -42,20 +44,13 @@ function App() {
     firstLogin,
     checkDataLoaded,
     onLoadAccount,
+    getSigningKey,
+    addTx,
+    updateTx,
+    txs,
   } = useIndexedDB();
   const { on, off, sendMessage } = useContext(MessageContext);
-
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      sessionStorage.removeItem("master");
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
+  const { sendTransaction, confirmTransactionBySignature } = useSolana();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -67,6 +62,35 @@ function App() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  const handleTransactionConfirmation = useCallback(
+    async (signature) => {
+      try {
+        console.log(`Confirming transaction with signature: ${signature}`);
+        const status = await confirmTransactionBySignature(signature);
+        console.log(
+          `Transaction ${signature} confirmed with status: ${status}`
+        );
+        await updateTx(signature, status);
+      } catch (error) {
+        console.error(`Error confirming transaction ${signature}:`, error);
+        await updateTx(signature, "failed");
+      }
+    },
+    [confirmTransactionBySignature, updateTx]
+  );
+
+  useEffect(() => {
+    const pendingSignatures = Object.values(txs)
+      .filter((tx) => tx.status === "pending")
+      .map((tx) => tx.id);
+
+    console.log(`Pending signatures: ${pendingSignatures}`);
+
+    pendingSignatures.forEach((signature) => {
+      handleTransactionConfirmation(signature);
+    });
+  }, [txs, handleTransactionConfirmation]);
 
   useEffect(() => {
     const handlePopupLoaded = (params, event, id) => {
@@ -205,47 +229,75 @@ function App() {
   }, [on, off, sendMessage]);
 
   const handleSign = async (request) => {
-    switch (request.method) {
-      case "connect":
-        const domain = await readDomain(request.event.origin);
-        if (!domain) {
-          await createDomain({ domain: request.event.origin });
-        }
-        sendMessage(
-          {
-            method: "connect",
-            data: { account: selectedAccount.publicKey },
-            requestId: request.requestId,
-            status: "success",
-          },
-          request.event.origin,
-          request.event.source
-        );
-        break;
-      case "signAndSendBundle":
-        sendMessage(
-          {
-            event: "signAndSendBundle",
-            data: {},
-            requestId: request.requestId,
-            status: "success",
-          },
-          request.event.origin,
-          request.event.source
-        );
-        break;
-      case "signAndSendTransaction":
-        sendMessage(
-          {
-            event: "signAndSendTransaction",
-            data: {},
-            requestId: request.requestId,
-            status: "success",
-          },
-          request.event.origin,
-          request.event.source
-        );
-        break;
+    try {
+      switch (request.method) {
+        case "connect":
+          const domain = await readDomain(request.event.origin);
+          if (!domain) {
+            await createDomain({ domain: request.event.origin });
+          }
+          sendMessage(
+            {
+              method: "connect",
+              data: { account: selectedAccount.publicKey },
+              requestId: request.requestId,
+              status: "success",
+            },
+            request.event.origin,
+            request.event.source
+          );
+          break;
+        case "signAndSendBundle":
+          sendMessage(
+            {
+              event: "signAndSendBundle",
+              data: {},
+              requestId: request.requestId,
+              status: "success",
+            },
+            request.event.origin,
+            request.event.source
+          );
+          break;
+        case "signAndSendTransaction":
+          const masterKey = await getSigningKey();
+          const decrypted = await decryptData(
+            selectedAccount.decryptionData,
+            masterKey
+          );
+          const signature = await sendTransaction(
+            request.params.message,
+            decrypted
+          );
+
+          const tx = {
+            id: signature,
+            signerAccount: selectedAccount.publicKey,
+            status: "pending",
+            type: "transaction",
+            metadata: {
+              createdAt: new Date().toISOString(),
+              message: request.params.message,
+            },
+          };
+
+          addTx(tx);
+
+          sendMessage(
+            {
+              event: "signAndSendTransaction",
+              data: {},
+              requestId: request.requestId,
+              status: "success",
+            },
+            request.event.origin,
+            request.event.source
+          );
+          break;
+      }
+    } catch (error) {
+      console.error("Error in handleSign:", error);
+      setPendingRequests((prevRequests) => prevRequests.slice(1));
     }
     setPendingRequests((prevRequests) => prevRequests.slice(1));
   };
