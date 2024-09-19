@@ -16,8 +16,6 @@ Modal.setAppElement("#root");
 
 const Home = () => {
   const {
-    getAccounts,
-    getTxs,
     addAccount,
     selectedAccount,
     setSelectedAccount,
@@ -25,7 +23,6 @@ const Home = () => {
     fetchHomeData,
     accounts,
     txs,
-    getSigningKey,
   } = useIndexedDB();
   const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false);
   const [newAccount, setNewAccount] = useState("");
@@ -56,15 +53,6 @@ const Home = () => {
     closeAddAccountModal();
   };
 
-  const decryptTest = async () => {
-    const masterKey = await getSigningKey();
-    const decrypted = await decryptData(
-      selectedAccount.decryptionData,
-      masterKey
-    );
-    console.log(decrypted);
-  };
-
   return (
     <div className="home-container">
       <WalletSelection
@@ -74,7 +62,7 @@ const Home = () => {
       />
       <BalanceDisplay selectedAccount={selectedAccount} />
       <div className="home-button-group">
-        <button onClick={decryptTest}>
+        <button>
           <FontAwesomeIcon icon={faGear} />
         </button>
         <p className="bundle-history-title">History</p>

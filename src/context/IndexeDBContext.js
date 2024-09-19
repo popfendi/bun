@@ -119,10 +119,6 @@ export function IndexedDBProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    console.log("txs state changed:", txs);
-  }, [txs]);
-
-  useEffect(() => {
     initDB();
   }, [initDB]);
 
@@ -257,7 +253,7 @@ export function IndexedDBProvider({ children }) {
   const addTx = useCallback(
     async (tx) => {
       await add("txs", tx);
-      setTxs((prevTxs) => [...prevTxs, tx]); // Always use the updater function to avoid stale state
+      setTxs((prevTxs) => [...prevTxs, tx]);
     },
     [add]
   );
@@ -265,23 +261,16 @@ export function IndexedDBProvider({ children }) {
   const updateTx = useCallback(
     async (signature, status) => {
       setTxs((prevTxs) => {
-        console.log(prevTxs); // This will always print the latest state
-        console.log(signature);
-
         const txToUpdate = prevTxs.find((tx) => tx.id === signature);
         if (txToUpdate) {
-          console.log("txToUpdate");
-          console.log(txToUpdate);
           const updatedTx = { ...txToUpdate, status };
-          console.log("updatedTx");
-          console.log(updatedTx);
           update("txs", updatedTx);
           return prevTxs.map((tx) => (tx.id === signature ? updatedTx : tx));
         }
-        return prevTxs; // No changes if no matching tx found
+        return prevTxs;
       });
     },
-    [update] // Include 'update' but not 'txs' because 'prevTxs' will handle current state
+    [update]
   );
 
   const setSelectedAccountAndUpdateStorage = useCallback(
@@ -587,11 +576,6 @@ export function IndexedDBProvider({ children }) {
       return false;
     }
     return true;
-  }, []);
-
-  const setMasterKeyForSession = useCallback((masterKey) => {
-    const encodedMasterKey = arrayBufferToBase64(masterKey);
-    sessionStorage.setItem("master", encodedMasterKey);
   }, []);
 
   const updateLastLogin = useCallback(async () => {

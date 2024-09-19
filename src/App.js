@@ -66,11 +66,7 @@ function App() {
   const handleTransactionConfirmation = useCallback(
     async (signature) => {
       try {
-        console.log(`Confirming transaction with signature: ${signature}`);
         const status = await confirmTransactionBySignature(signature);
-        console.log(
-          `Transaction ${signature} confirmed with status: ${status}`
-        );
         await updateTx(signature, status);
       } catch (error) {
         console.error(`Error confirming transaction ${signature}:`, error);
@@ -84,8 +80,6 @@ function App() {
     const pendingSignatures = Object.values(txs)
       .filter((tx) => tx.status === "pending")
       .map((tx) => tx.id);
-
-    console.log(`Pending signatures: ${pendingSignatures}`);
 
     pendingSignatures.forEach((signature) => {
       handleTransactionConfirmation(signature);
@@ -154,12 +148,6 @@ function App() {
     };
 
     const handleSignAndSendTx = async (params, event, id) => {
-      // check if origin is connected
-      // get tx from params
-      // parse tx, prompt user to sign
-      // sign tx
-      // send tx  and wait on status
-      // return tx id to origin
       const domain = await readDomain(event.origin);
       if (!domain) {
         sendMessage(

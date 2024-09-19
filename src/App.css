@@ -220,14 +220,14 @@ button:active {
   margin: 0;
 }
 
-.bundle-history-container {
+.tx-history-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
-.bundle-label-container {
+.tx-label-container {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -236,7 +236,7 @@ button:active {
   cursor: pointer;
 }
 
-.bundle-label-container > * {
+.tx-label-container > * {
   margin: 0.5rem;
 }
 
@@ -245,14 +245,14 @@ button:active {
   filter: brightness(1.2);
 }
 
-.bundle-label-text-container {
+.tx-label-text-container {
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
 }
 
-.bundle-label-text-left {
+.tx-label-text {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -261,28 +261,28 @@ button:active {
   margin: 0.5rem;
 }
 
-.bundle-label-text-right {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  margin: 0.5rem;
-}
-
-.bundle-label-text-id {
+.tx-label-text-id {
   font-size: 0.75rem;
   color: var(--color-dark-blue);
   margin: 0;
 }
 
-.bundle-label-text-status {
+.tx-label-text-status {
   font-size: 0.7rem;
   color: var(--color-dark-blue);
   margin: 0;
 }
 
+.tx-label-link {
+  text-decoration: none;
+  color: var(--color-white);
+}
+
 .status-colour-landed {
+  color: var(--color-green);
+}
+
+.status-colour-confirmed {
   color: var(--color-green);
 }
 
@@ -453,12 +453,12 @@ button:active {
   font-size: 0.75rem;
 }
 
-@media (max-width: 600px) {
-  .bundle-label-container > * {
+@media (max-width: 650px) {
+  .tx-label-container > * {
     margin: 0.25rem;
   }
 
-  .bundle-label-text-id {
+  .tx-label-text-id {
     font-size: 0.5rem;
   }
 
@@ -466,15 +466,7 @@ button:active {
     font-size: 0.5rem;
   }
 
-  .bundle-label-text-left {
+  .tx-label-text {
     margin: 0.25rem;
-  }
-
-  .bundle-label-text-right {
-    margin: 0.25rem;
-  }
-
-  .bundle-label-text-amount {
-    font-size: 0.75rem;
   }
 }
