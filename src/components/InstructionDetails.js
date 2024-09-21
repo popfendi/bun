@@ -1,7 +1,7 @@
 import { parseTransferSolInstruction } from "../utils/Solana";
 import { useState, useEffect } from "react";
 
-const InstructionDetails = ({ key, instruction }) => {
+const InstructionDetails = ({ instruction }) => {
   const [isTransferSol, setIsTransferSol] = useState(false);
   const [data, setData] = useState(0);
   const [to, setTo] = useState("Unknown");
@@ -9,7 +9,6 @@ const InstructionDetails = ({ key, instruction }) => {
   useEffect(() => {
     const { isTransfer, amount, from, to } =
       parseTransferSolInstruction(instruction);
-    console.log(parseTransferSolInstruction(instruction));
     setIsTransferSol(isTransfer);
 
     if (isTransfer) {

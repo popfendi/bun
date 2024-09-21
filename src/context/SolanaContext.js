@@ -12,6 +12,9 @@ import {
   getBalanceDiff,
   signAndSendTransaction,
   confirmTransaction,
+  isTipInstruction,
+  signAndSendBundle,
+  pollBundleStatus,
 } from "../utils/Solana";
 import { conf } from "../config";
 const SolanaContext = createContext();
@@ -30,6 +33,7 @@ export const SolanaProvider = ({ children }) => {
   const requestCountRef = useRef(0);
   const rpcRequestCountRef = useRef(0);
   const concurrentConnectionsRef = useRef(0);
+  const jitoTipAccountsRef = useRef([]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -41,6 +45,33 @@ export const SolanaProvider = ({ children }) => {
     return () => {
       clearInterval(interval);
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch(
+          "https://mainnet.block-engine.jito.wtf/api/v1/bundles",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              id: 1,
+              method: "getTipAccounts",
+              params: [],
+            }),
+          }
+        );
+        const data = await response.json();
+        jitoTipAccountsRef.current = data.result;
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+    fetchData();
   }, []);
 
   // rate limiter for solana mainnet rules.
@@ -94,6 +125,35 @@ export const SolanaProvider = ({ children }) => {
     return rateLimit(confirmTransaction, connection, signature);
   };
 
+  const instructionIsJitoTip = (instruction) => {
+    return isTipInstruction(jitoTipAccountsRef.current, instruction);
+  };
+
+  const getRandomJitoTipAccount = () => {
+    const accounts = jitoTipAccountsRef.current;
+    if (accounts.length === 0) {
+      throw new Error("No Jito tip accounts available");
+    }
+    const randomIndex = Math.floor(Math.random() * accounts.length);
+    return accounts[randomIndex];
+  };
+
+  const sendBundle = async (bundle, pk, tipAmount) => {
+    const tipRecipient = getRandomJitoTipAccount();
+    return rateLimit(
+      signAndSendBundle,
+      connection,
+      bundle,
+      pk,
+      tipAmount,
+      tipRecipient
+    );
+  };
+
+  const confirmBundleById = async (bundleId) => {
+    return rateLimit(pollBundleStatus, bundleId);
+  };
+
   return (
     <SolanaContext.Provider
       value={{
@@ -104,6 +164,9 @@ export const SolanaProvider = ({ children }) => {
         getBalanceDifference,
         sendTransaction,
         confirmTransactionBySignature,
+        instructionIsJitoTip,
+        sendBundle,
+        confirmBundleById,
       }}
     >
       {children}

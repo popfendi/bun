@@ -8,27 +8,19 @@ import { useIndexedDB } from "./context/IndexeDBContext";
 import { useSolana } from "./context/SolanaContext";
 import { decryptData } from "./utils/Encrypt";
 
-const testSendTransactionRequest = {
-  method: "signAndSendTransaction",
+const testSendBundleRequest = {
+  method: "signAndSendBundle",
   params: {
-    message:
+    message: [
       "87PYurGuVw3zGvqZ2EEfbcF3nW8gSjYuFjycBp6h1sH2wvrv1oCpu9GLTbCNXJAT395QNdsxafJPp7H2o1RF1eYhst4vexYtpdnnu3kapTYxNAYYREjwEy4SmNvU666zSc6NXCreFb3EnVCvGTRQKHaPknMTmBprp3WS65WnL9Fycgs3SPxSWgMNDHjoT5CkTYh9AuKR7c4w",
+      "87PYurGuVw3zGvqZ2EEfbcF3nW8gSjYuFjycBp6h1sH2wvrv4pxsCcJuVysPx95VmjNYcZvxtc1BWJfKDpCBKTmfE32gtK3fvztAXDSPt5gEmnkdHehfEGK8Rbp7KuhCfkZ4znV2PVrKh4oF2VrQ5Pz9H6hjTYe4768FPXyx21GkVfT3iRTqvvq8Y35q2Sjjt37kqRGnLWyM",
+    ],
   },
   event: {
     origin: "https://example.com",
     source: window,
   },
   requestId: "uniqueRequestId",
-};
-
-const testConnectRequest = {
-  method: "connect",
-  params: {},
-  event: {
-    origin: "https://example.com",
-    source: window,
-  },
-  requestId: "uniqueConnectRequestId",
 };
 
 function App() {
@@ -50,13 +42,18 @@ function App() {
     txs,
   } = useIndexedDB();
   const { on, off, sendMessage } = useContext(MessageContext);
-  const { sendTransaction, confirmTransactionBySignature } = useSolana();
+  const {
+    sendTransaction,
+    confirmTransactionBySignature,
+    sendBundle,
+    confirmBundleById,
+  } = useSolana();
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setPendingRequests((prevRequests) => [
         ...prevRequests,
-        testSendTransactionRequest,
+        testSendBundleRequest,
       ]);
     }, 2000);
 
@@ -76,15 +73,33 @@ function App() {
     [confirmTransactionBySignature, updateTx]
   );
 
+  const handleBundleConfirmation = useCallback(
+    async (bundleId) => {
+      const status = await confirmBundleById(bundleId);
+      await updateTx(bundleId, status ? "landed" : "failed");
+    },
+    [confirmBundleById, updateTx]
+  );
+
   useEffect(() => {
     const pendingSignatures = Object.values(txs)
       .filter((tx) => tx.status === "pending")
+      .filter((tx) => tx.type === "transaction")
+      .map((tx) => tx.id);
+
+    const pendingBundles = Object.values(txs)
+      .filter((tx) => tx.status === "pending")
+      .filter((tx) => tx.type === "bundle")
       .map((tx) => tx.id);
 
     pendingSignatures.forEach((signature) => {
       handleTransactionConfirmation(signature);
     });
-  }, [txs, handleTransactionConfirmation]);
+
+    pendingBundles.forEach((bundleId) => {
+      handleBundleConfirmation(bundleId);
+    });
+  }, [txs, handleTransactionConfirmation, handleBundleConfirmation]);
 
   useEffect(() => {
     const handlePopupLoaded = (params, event, id) => {
@@ -217,6 +232,9 @@ function App() {
   }, [on, off, sendMessage]);
 
   const handleSign = async (request) => {
+    let masterKey;
+    let decrypted;
+    let tx;
     try {
       switch (request.method) {
         case "connect":
@@ -236,6 +254,31 @@ function App() {
           );
           break;
         case "signAndSendBundle":
+          masterKey = await getSigningKey();
+          decrypted = await decryptData(
+            selectedAccount.decryptionData,
+            masterKey
+          );
+
+          const bundleId = await sendBundle(
+            request.params.message,
+            decrypted,
+            request.params.jitoTipAmount
+          );
+
+          tx = {
+            id: bundleId,
+            signerAccount: selectedAccount.publicKey,
+            status: "pending",
+            type: "bundle",
+            metadata: {
+              createdAt: new Date().toISOString(),
+              message: request.params.message,
+            },
+          };
+
+          addTx(tx);
+
           sendMessage(
             {
               event: "signAndSendBundle",
@@ -248,8 +291,8 @@ function App() {
           );
           break;
         case "signAndSendTransaction":
-          const masterKey = await getSigningKey();
-          const decrypted = await decryptData(
+          masterKey = await getSigningKey();
+          decrypted = await decryptData(
             selectedAccount.decryptionData,
             masterKey
           );
@@ -258,7 +301,7 @@ function App() {
             decrypted
           );
 
-          const tx = {
+          tx = {
             id: signature,
             signerAccount: selectedAccount.publicKey,
             status: "pending",

@@ -200,3 +200,119 @@ export async function confirmTransaction(connection, signature) {
   const status = confirmation.value.err ? "failed" : "confirmed";
   return status;
 }
+
+export async function signAndSendBundle(
+  connection,
+  bundle,
+  pk,
+  tipAmount,
+  tipRecipient
+) {
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  const transactions = bundle.map((b58Tx) =>
+    updateMessageBlockhash(b58Tx, blockhash)
+  );
+
+  const signer = Keypair.fromSecretKey(bs58.decode(pk));
+
+  if (tipAmount > 0) {
+    const transferInstruction = SystemProgram.transfer({
+      fromPubkey: signer.publicKey,
+      toPubkey: new PublicKey(tipRecipient),
+      lamports: Math.round(tipAmount * LAMPORTS_PER_SOL),
+    });
+
+    transactions[transactions.length - 1].add(transferInstruction);
+  }
+
+  const signedTransactions = transactions.map((transaction) => {
+    transaction.sign(signer);
+    return transaction;
+  });
+
+  const signedTransactionsB58 = signedTransactions.map((transaction) =>
+    bs58.encode(transaction.serialize())
+  );
+
+  let bundleId;
+  try {
+    const response = await fetch(
+      "https://mainnet.block-engine.jito.wtf/api/v1/bundles",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "sendBundle",
+          params: [signedTransactionsB58],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    bundleId = result.result;
+  } catch (error) {
+    console.error("Error sending bundle:", error);
+    throw error;
+  }
+  return bundleId;
+}
+
+export async function pollBundleStatus(bundleId, maxRetries = 60) {
+  const endpoint = "https://mainnet.block-engine.jito.wtf/api/v1/bundles";
+  const requestBody = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "getInflightBundleStatuses",
+    params: [[bundleId]],
+  };
+
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const status = result.result.value[0].status;
+
+      if (status === "Failed" || status === "Landed") {
+        return status === "Landed";
+      }
+
+      if (status === "Invalid") {
+        retries += 1;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } else if (status === "Pending") {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    } catch (error) {
+      console.error("Error polling bundle status:", error);
+      throw error;
+    }
+  }
+
+  throw new Error("Max retries reached without conclusive status");
+}
+
+export function isTipInstruction(jitoTipAccounts, instruction) {
+  return instruction.keys.some((key) =>
+    jitoTipAccounts.includes(key.pubkey.toBase58())
+  );
+}

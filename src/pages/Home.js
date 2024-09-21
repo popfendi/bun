@@ -5,11 +5,7 @@ import { faGear, faPlus } from "@fortawesome/free-solid-svg-icons";
 import TxHistory from "../components/TxHistory";
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import {
-  isValidBase58PrivateKey,
-  getPublicKeyFromPrivateKey,
-} from "../utils/Solana";
-import { encryptData, decryptData } from "../utils/Encrypt";
+import { isValidBase58PrivateKey } from "../utils/Solana";
 import { useIndexedDB } from "../context/IndexeDBContext";
 
 Modal.setAppElement("#root");

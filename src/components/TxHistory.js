@@ -14,7 +14,7 @@ const TxHistory = (props) => {
         <a
           href={
             tx.type === "transaction"
-              ? `https://explorer.solana.com/tx/${tx.id}?cluster=devnet`
+              ? `https:/solscan.io/tx/${tx.id}`
               : `https://explorer.jito.wtf/bundle/${tx.id}`
           }
           target="_blank"

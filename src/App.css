@@ -133,6 +133,24 @@ button {
   font-family: "SUSE", sans-serif;
 }
 
+.button-disabled {
+  filter: brightness(0.5);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  margin: 0.1rem;
+  font-family: "SUSE", sans-serif;
+}
+
+.button-disabled:hover {
+  filter: brightness(0.5);
+}
+
+.button-disabled:active {
+  filter: brightness(0.5);
+}
+
 button:hover {
   filter: brightness(0.9);
 }
@@ -451,6 +469,30 @@ button:active {
   color: var(--color-red);
   font-weight: bold;
   font-size: 0.75rem;
+}
+
+.tip-modal-title {
+  font-size: 1rem;
+  color: var(--color-dark-blue);
+}
+
+.tip-modal-text {
+  font-size: 0.75rem;
+  color: var(--color-light-blue);
+}
+
+.reccomended-text {
+  color: var(--color-green);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.bundle-instruction-details-title {
+  font-size: 1rem;
+  color: var(--color-dark-blue);
+  margin: 0;
+  margin-top: 0.5rem;
+  font-weight: bold;
 }
 
 @media (max-width: 650px) {
