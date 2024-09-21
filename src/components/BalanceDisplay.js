@@ -24,6 +24,25 @@ const BalanceDisplay = (props) => {
     fetchBalance();
   }, [props.selectedAccount, getUserBalance]);
 
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const fetchBalance = async () => {
+        if (props.selectedAccount) {
+          try {
+            const b = await getUserBalance(props.selectedAccount.publicKey);
+            setBalance(b);
+          } catch (error) {
+            console.error(error);
+          }
+        }
+      };
+
+      fetchBalance();
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [props.selectedAccount, getUserBalance]);
+
   return (
     <div className="balance-display-container">
       <div className="balance-text">
