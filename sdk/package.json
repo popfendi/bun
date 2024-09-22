@@ -1,0 +1,26 @@
+{
+  "name": "bun-wallet-sdk",
+  "version": "1.0.0",
+  "description": "sdk to integrate bun wallet to website",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/popfendi/bun-wallet-sdk.git"
+  },
+  "keywords": [
+    "bun",
+    "wallet",
+    "solana"
+  ],
+  "author": "popfendi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/popfendi/bun-wallet-sdk/issues"
+  },
+  "homepage": "https://github.com/popfendi/bun-wallet-sdk#readme",
+  "dependencies": {}
+}
