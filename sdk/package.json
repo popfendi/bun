@@ -22,5 +22,7 @@
     "url": "https://github.com/popfendi/bun-wallet-sdk/issues"
   },
   "homepage": "https://github.com/popfendi/bun-wallet-sdk#readme",
-  "dependencies": {}
+  "dependencies": {
+    "uuid": "^10.0.0"
+  }
 }
