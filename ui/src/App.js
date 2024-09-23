@@ -8,21 +8,6 @@ import { useIndexedDB } from "./context/IndexeDBContext";
 import { useSolana } from "./context/SolanaContext";
 import { decryptData } from "./utils/Encrypt";
 
-const testSendBundleRequest = {
-  method: "signAndSendBundle",
-  params: {
-    message: [
-      "87PYurGuVw3zGvqZ2EEfbcF3nW8gSjYuFjycBp6h1sH2wvrv1oCpu9GLTbCNXJAT395QNdsxafJPp7H2o1RF1eYhst4vexYtpdnnu3kapTYxNAYYREjwEy4SmNvU666zSc6NXCreFb3EnVCvGTRQKHaPknMTmBprp3WS65WnL9Fycgs3SPxSWgMNDHjoT5CkTYh9AuKR7c4w",
-      "87PYurGuVw3zGvqZ2EEfbcF3nW8gSjYuFjycBp6h1sH2wvrv4pxsCcJuVysPx95VmjNYcZvxtc1BWJfKDpCBKTmfE32gtK3fvztAXDSPt5gEmnkdHehfEGK8Rbp7KuhCfkZ4znV2PVrKh4oF2VrQ5Pz9H6hjTYe4768FPXyx21GkVfT3iRTqvvq8Y35q2Sjjt37kqRGnLWyM",
-    ],
-  },
-  event: {
-    origin: "https://example.com",
-    source: window,
-  },
-  requestId: "uniqueRequestId",
-};
-
 function App() {
   const [pendingRequests, setPendingRequests] = useState([]);
   const {
@@ -48,17 +33,6 @@ function App() {
     sendBundle,
     confirmBundleById,
   } = useSolana();
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPendingRequests((prevRequests) => [
-        ...prevRequests,
-        testSendBundleRequest,
-      ]);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleTransactionConfirmation = useCallback(
     async (signature) => {
@@ -282,7 +256,7 @@ function App() {
           sendMessage(
             {
               event: "signAndSendBundle",
-              data: {},
+              data: { bundleId },
               requestId: request.requestId,
               status: "success",
             },
@@ -317,7 +291,7 @@ function App() {
           sendMessage(
             {
               event: "signAndSendTransaction",
-              data: {},
+              data: { signature },
               requestId: request.requestId,
               status: "success",
             },
