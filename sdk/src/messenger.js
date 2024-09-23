@@ -17,7 +17,6 @@ export class Messenger {
 
   postMessage = async (message) => {
     const popup = await this.waitForPopupLoaded();
-    console.log("Posting message to popup:", message);
     popup.postMessage(message, this.url.origin);
   };
 
