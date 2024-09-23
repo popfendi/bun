@@ -1,4 +1,5 @@
 import { Messenger } from "./messenger";
+import { BUN_URL } from "./utils/constants";
 import { v4 as uuidv4 } from "uuid";
 
 class Provider {
@@ -6,7 +7,7 @@ class Provider {
     this.publicKey = null;
     this.isConnected = false;
     this.events = {};
-    this.messenger = Messenger.getInstance();
+    this.messenger = Messenger.getInstance(BUN_URL);
   }
 
   /**
@@ -143,13 +144,4 @@ class Provider {
   }
 }
 
-let providerInstance = null;
-
-function getProvider() {
-  if (!providerInstance) {
-    providerInstance = new Provider();
-  }
-  return providerInstance;
-}
-
-export { getProvider };
+export { Provider };
