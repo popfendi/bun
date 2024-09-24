@@ -22,7 +22,7 @@ export class Messenger {
 
   postRequestAndWaitForResponse = async (request) => {
     const responsePromise = this.onMessage(
-      ({ requestId }) => requestId === request.id
+      ({ requestId }) => requestId === request.requestId
     );
     this.postMessage(request);
     return await responsePromise;

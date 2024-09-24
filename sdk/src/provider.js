@@ -33,7 +33,7 @@ class Provider {
         this.isConnected = true;
         this.publicKey = response.data.account;
         this._emitEvent("accountChanged", this.publicKey);
-        resolve(response);
+        resolve(response.data.account);
       } catch (error) {
         reject(new Error(`Connection failed: ${error.message}`));
       }
