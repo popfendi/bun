@@ -29,6 +29,10 @@ export function getPublicKeyFromPrivateKey(base58PrivateKey) {
   }
 }
 
+export function createNewAccount() {
+  return bs58.encode(Keypair.generate().secretKey);
+}
+
 export function b58ToTransaction(b58String) {
   let decoded = bs58.decode(b58String);
 

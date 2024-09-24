@@ -339,6 +339,12 @@ button:active {
   margin: 0;
 }
 
+.modal-info {
+  font-size: 1rem;
+  color: var(--color-dark-blue);
+  margin: 5px;
+}
+
 .add-modal-button-group {
   display: flex;
   flex-direction: row;
@@ -362,6 +368,19 @@ button:active {
   margin-bottom: 1rem;
   padding: 0.25rem;
   background: var(--color-light-blue);
+}
+
+.hover-to-reveal {
+  background-color: var(--color-light-blue);
+  color: var(--color-dark-blue);
+  font-size: 0.75rem;
+  margin: 5px;
+  padding: 5px;
+  border-radius: 0.5rem;
+  max-width: 100%;
+  text-align: center;
+  white-space: normal;
+  word-wrap: break-word;
 }
 
 .request-page-title {

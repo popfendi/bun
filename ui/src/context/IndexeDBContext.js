@@ -225,7 +225,7 @@ export function IndexedDBProvider({ children }) {
       );
 
       await add("accounts", newAccount);
-      setSelectedAccount(newAccount);
+      setSelectedAccountAndUpdateStorage(newAccount);
       setAccounts([...accounts, newAccount]);
       localStorage.setItem("selectedAccount", newAccount.publicKey);
 
@@ -314,15 +314,15 @@ export function IndexedDBProvider({ children }) {
           setAccounts(accounts);
 
           const selectedPublicKey = localStorage.getItem("selectedAccount");
-          let selectedAccount = null;
+          let sAccount = null;
           if (selectedPublicKey) {
-            selectedAccount = accounts.find(
+            sAccount = accounts.find(
               (account) => account.publicKey === selectedPublicKey
             );
           } else {
-            selectedAccount = accounts[0];
+            sAccount = accounts[0];
           }
-          setSelectedAccount(selectedAccount);
+          setSelectedAccount(sAccount);
           onLoadAccount.current = selectedAccount.publicKey;
           const txs = await getTxsForAccount(selectedAccount.publicKey);
           setTxs(txs);
@@ -335,6 +335,22 @@ export function IndexedDBProvider({ children }) {
     }
     return dataLoadedRef.current;
   }, [getAccounts, getTxs]);
+
+  const fetchAccountData = useCallback(
+    async (account) => {
+      return new Promise(async (resolve) => {
+        try {
+          const txs = await getTxsForAccount(account.publicKey);
+          setTxs(txs);
+          resolve(true);
+        } catch (error) {
+          console.error("Error fetching data from IndexedDB:", error);
+          resolve(false);
+        }
+      });
+    },
+    [getTxs]
+  );
 
   // was having issus with postmessage not waiting for data before trying to handle.
   const checkDataLoaded = async () => {
@@ -609,6 +625,7 @@ export function IndexedDBProvider({ children }) {
     decryptPrivateKey,
     selectedAccount,
     fetchHomeData,
+    fetchAccountData,
     register,
     login,
     logout,

@@ -1,11 +1,12 @@
 import WalletSelection from "../components/WalletSelection";
 import BalanceDisplay from "../components/BalanceDisplay";
+import HoverToReveal from "../components/HoverToReveal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGear, faPlus } from "@fortawesome/free-solid-svg-icons";
 import TxHistory from "../components/TxHistory";
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { isValidBase58PrivateKey } from "../utils/Solana";
+import { isValidBase58PrivateKey, createNewAccount } from "../utils/Solana";
 import { useIndexedDB } from "../context/IndexeDBContext";
 
 Modal.setAppElement("#root");
@@ -14,18 +15,23 @@ const Home = () => {
   const {
     addAccount,
     selectedAccount,
-    setSelectedAccount,
     setSelectedAccountAndUpdateStorage,
     fetchHomeData,
+    fetchAccountData,
     accounts,
     txs,
   } = useIndexedDB();
   const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false);
   const [newAccount, setNewAccount] = useState("");
+  const [newAccountPrivateKey, setNewAccountPrivateKey] = useState("");
 
   useEffect(() => {
     fetchHomeData();
-  }, [setSelectedAccount]);
+  }, []);
+
+  useEffect(() => {
+    fetchAccountData(selectedAccount);
+  }, [selectedAccount]);
 
   const openAddAccountModal = () => {
     setIsAddAccountModalOpen(true);
@@ -47,6 +53,12 @@ const Home = () => {
       alert("Invalid Solana private key");
     }
     closeAddAccountModal();
+  };
+
+  const createAccount = () => {
+    const account = createNewAccount();
+    addAccount(account);
+    setNewAccountPrivateKey(account);
   };
 
   return (
@@ -78,6 +90,9 @@ const Home = () => {
         className="modal"
         overlayClassName="modal-overlay"
       >
+        <button onClick={createAccount}>Create Account</button>
+        {newAccountPrivateKey && <HoverToReveal text={newAccountPrivateKey} />}
+        <p className="modal-info">OR</p>
         <p className="modal-title">add account</p>
         <input
           type="password"
