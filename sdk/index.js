@@ -1,4 +1,4 @@
-import { Provider } from "./provider";
+import { Provider } from "./src/provider.js";
 
 let providerInstance = null;
 

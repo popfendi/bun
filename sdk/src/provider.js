@@ -1,5 +1,5 @@
-import { Messenger } from "./messenger";
-import { BUN_URL } from "./utils/constants";
+import { Messenger } from "./messenger.js";
+import { BUN_URL } from "./utils/constants.js";
 import { v4 as uuidv4 } from "uuid";
 
 class Provider {
