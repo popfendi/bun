@@ -75,7 +75,8 @@ const RequestPage = ({ requestDetails, onSign, onReject, selectedAccount }) => {
           Set Tip
         </button>
       )}
-      {jitoTipAmount < 0.000001 ? (
+      {jitoTipAmount < 0.000001 &&
+      requestDetails.method == "signAndSendBundle" ? (
         <button onClick={null} className="button-disabled" disabled>
           Confirm
         </button>
