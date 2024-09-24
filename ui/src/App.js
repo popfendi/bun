@@ -357,7 +357,10 @@ function App() {
   };
 
   return (
-    <div className="App">
+    <div
+      className="App"
+      style={{ justifyContent: !isLoggedIn ? "center" : "initial" }}
+    >
       <p className="logo-text">BUN</p>
       {isLoggedIn ? (
         pendingRequests.length > 0 ? (
