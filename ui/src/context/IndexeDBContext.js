@@ -225,7 +225,7 @@ export function IndexedDBProvider({ children }) {
       );
 
       await add("accounts", newAccount);
-      setSelectedAccountAndUpdateStorage(newAccount);
+      setSelectedAccountAndUpdateStorage(newAccount.publicKey);
       setAccounts([...accounts, newAccount]);
       localStorage.setItem("selectedAccount", newAccount.publicKey);
 

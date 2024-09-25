@@ -45,9 +45,9 @@ const Home = () => {
     setNewAccount(e.target.value);
   };
 
-  const handleAddAccount = () => {
+  const handleAddAccount = async () => {
     if (isValidBase58PrivateKey(newAccount)) {
-      addAccount(newAccount);
+      await addAccount(newAccount);
       setNewAccount("");
     } else {
       alert("Invalid Solana private key");
@@ -55,9 +55,9 @@ const Home = () => {
     closeAddAccountModal();
   };
 
-  const createAccount = () => {
+  const createAccount = async () => {
     const account = createNewAccount();
-    addAccount(account);
+    await addAccount(account);
     setNewAccountPrivateKey(account);
   };
 
