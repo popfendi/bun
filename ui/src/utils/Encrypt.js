@@ -175,9 +175,7 @@ export async function generateTemporaryKey() {
 export function extractPublicKey(attestationObject) {
   const attestationBuffer = isoBase64URL.toBuffer(attestationObject);
   const decodedAttestationObject = decodeAttestationObject(attestationBuffer);
-  console.log(decodedAttestationObject);
   const authData = decodedAttestationObject.get("authData");
-  console.log(authData);
   const dataView = new DataView(authData.buffer);
   const publicKeyLength = dataView.getUint16(53);
   return authData.slice(55, 55 + publicKeyLength);
