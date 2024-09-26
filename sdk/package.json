@@ -10,7 +10,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/popfendi/bun-wallet-sdk.git"
+    "url": "git+https://github.com/popfendi/bun.git",
+    "directory": "sdk"
   },
   "keywords": [
     "bun",
@@ -20,9 +21,9 @@
   "author": "popfendi",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/popfendi/bun-wallet-sdk/issues"
+    "url": "https://github.com/popfendi/bun/issues"
   },
-  "homepage": "https://github.com/popfendi/bun-wallet-sdk#readme",
+  "homepage": "https://github.com/popfendi/bun#readme",
   "dependencies": {
     "uuid": "^10.0.0"
   }
