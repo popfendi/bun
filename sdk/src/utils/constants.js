@@ -1,1 +1,1 @@
-export const BUN_URL = "http://localhost:3000";
+export const BUN_URL = "https://bun.money";
